@@ -11,12 +11,25 @@
 		body {
 			background-color: #f8f9fa;
 			font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+			margin: 0;
+			padding: 0;
+			overflow-x: hidden;
+			min-height: 100vh;
+		}
+
+		.main-container {
+			display: flex;
+			width: 100%;
+			min-height: 100vh;
+		}
+
+		.content-container {
+			flex-grow: 1;
 			display: flex;
 			justify-content: center;
 			align-items: center;
-			min-height: 100vh;
-			margin: 0;
 			padding: 10px;
+			transition: margin-left 0.3s ease;
 		}
 
 		.container {
@@ -25,6 +38,144 @@
 			align-items: center;
 			width: 100%;
 			padding: 0;
+		}
+
+		/* Sidebar styles */
+		.sidebar {
+			position: fixed;
+			height: 100%;
+			width: 0;
+			top: 0;
+			left: 0;
+			background-color: #2c3e50;
+			overflow-x: hidden;
+			transition: 0.3s;
+			z-index: 1000;
+			box-shadow: 3px 0 15px rgba(0, 0, 0, 0.1);
+		}
+
+		.sidebar.open {
+			width: 250px;
+		}
+
+		.sidebar-header {
+			padding: 15px;
+			color: white;
+			border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+		}
+
+		.sidebar-title {
+			font-size: 1.2rem;
+			margin: 0;
+		}
+
+		.close-btn {
+			color: white;
+			background: transparent;
+			border: none;
+			font-size: 1.5rem;
+			cursor: pointer;
+		}
+
+		.menu-btn {
+			position: fixed;
+			top: 15px;
+			left: 15px;
+			background-color: #3498db;
+			color: white;
+			border: none;
+			border-radius: 50%;
+			width: 40px;
+			height: 40px;
+			font-size: 1.2rem;
+			cursor: pointer;
+			z-index: 999;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+			transition: background-color 0.3s;
+		}
+
+		/* Estilo para 3 rallitas del menú */
+		.menu-btn .hamburger {
+			width: 20px;
+			height: 16px;
+			position: relative;
+			display: flex;
+			flex-direction: column;
+			justify-content: space-between;
+		}
+
+		.menu-btn .hamburger span {
+			display: block;
+			height: 2px;
+			width: 100%;
+			background-color: white;
+			border-radius: 2px;
+		}
+
+		.menu-btn:hover {
+			background-color: #2980b9;
+		}
+
+		.station-list {
+			list-style: none;
+			padding: 0;
+			margin: 0;
+			overflow-y: auto;
+			max-height: calc(100% - 60px);
+		}
+
+		.station-item {
+			padding: 12px 15px;
+			border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+			color: rgba(255, 255, 255, 0.8);
+			cursor: pointer;
+			transition: background-color 0.2s;
+		}
+
+		.station-item:hover {
+			background-color: rgba(255, 255, 255, 0.1);
+		}
+
+		.station-item.active {
+			background-color: #3498db;
+			color: white;
+			font-weight: bold;
+		}
+
+		/* Estilos para la mini barra de progreso en el menú lateral */
+		.mini-progress {
+			height: 6px;
+			background-color: rgba(255, 255, 255, 0.15);
+			border-radius: 3px;
+			overflow: hidden;
+			margin-top: 5px;
+		}
+
+		.mini-progress-bar {
+			height: 100%;
+			transition: width 0.3s ease;
+		}
+
+		.mini-progress-bar.low {
+			background-color: #e74c3c;
+		}
+
+		.mini-progress-bar.medium {
+			background-color: #f39c12;
+		}
+
+		.mini-progress-bar.high {
+			background-color: #2ecc71;
+		}
+
+		.station-name-sidebar {
+			margin-bottom: 0;
 		}
 
 		.station-card {
@@ -109,9 +260,9 @@
 			right: 15px;
 			z-index: 10;
 			pointer-events: none;
+			animation: pulse 1s infinite alternate;
 		}
 
-		 /* Add styles for the logo container */
 		.station-logo-container {
 			position: absolute;
 			top: 15px;
@@ -129,7 +280,6 @@
 		}
 
 		.station-timer {
-			animation: pulse 1s infinite alternate;
 			display: block;
 		}
 
@@ -155,6 +305,10 @@
 		}
 
 		@media (max-width: 576px) {
+			.sidebar.open {
+				width: 80%;
+			}
+
 			.station-card {
 				padding: 1.2rem 0.8rem !important;
 				max-width: 95%;
@@ -194,51 +348,75 @@
 </head>
 
 <body>
-	<div class="container">
-		<div id="station-container" class="row justify-content-center align-items-center w-100">
-			<div class="col-12 col-md-10 col-lg-6">
-				<div id="station-card" class="station-card p-4 animate__animated animate__fadeIn">
-					<!-- Add the logo container -->
-					<div class="station-logo-container">
-						<img src="./bilbaobizi-logo.png" alt="Bilbaobizi Logo" class="station-logo">
-					</div>
-					
-					<div class="station-timer-container">
-						<svg class="station-timer" width="30" height="30" viewBox="0 0 30 30">
-							<circle cx="15" cy="15" r="12" fill="none" stroke="#e0e0e0" stroke-width="2"></circle>
-							<circle id="station-timer-progress" cx="15" cy="15" r="12" fill="none" stroke="#3498db"
-								stroke-width="2" stroke-dasharray="75" stroke-dashoffset="0"
-								transform="rotate(-90 15 15)"></circle>
-						</svg>
-					</div>
+	<!-- Sidebar menu -->
+	<div id="sidebar" class="sidebar">
+		<div class="sidebar-header">
+			<h3 class="sidebar-title">Estaciones</h3>
+			<button class="close-btn" onclick="toggleSidebar()">&times;</button>
+		</div>
+		<ul id="station-list" class="station-list">
+			<!-- Station items will be added here dynamically -->
+		</ul>
+	</div>
 
-					<div class="bike-icon text-center">
-						<i class="fas fa-bicycle"></i>
-					</div>
-					<h2 id="station-name" class="station-name text-center">Nombre de la Estación</h2>
+	<!-- Menu toggle button -->
+	<button class="menu-btn" onclick="toggleSidebar()">
+		<div class="hamburger">
+			<span></span>
+			<span></span>
+			<span></span>
+		</div>
+	</button>
 
-					<div class="progress">
-						<div id="bike-progress" class="progress-bar" role="progressbar" aria-valuenow="0"
-							aria-valuemin="0" aria-valuemax="100"></div>
-					</div>
-
-					<div class="stats-container">
-						<div class="row">
-							<div class="col-md-6">
-								<div class="stats-item">
-									<strong>Bicicletas disponibles:</strong>
-									<span id="bikes-available" class="stats-value">0</span>
-								</div>
-								<div class="stats-item">
-									<strong>Espacios disponibles:</strong>
-									<span id="space-status" class="stats-value">0/0</span>
-								</div>
+	<div class="main-container">
+		<div class="content-container">
+			<div class="container">
+				<div id="station-container" class="row justify-content-center align-items-center w-100">
+					<div class="col-12 col-md-10 col-lg-6">
+						<div id="station-card" class="station-card p-4 animate__animated animate__fadeIn">
+							<!-- Add the logo container -->
+							<div class="station-logo-container">
+								<img src="./bilbaobizi-logo.png" alt="Bilbaobizi Logo" class="station-logo">
 							</div>
-							<div class="col-md-6">
-								<div class="stats-item">
-									<strong>Tipos de bicicletas:</strong>
+							
+							<div class="station-timer-container">
+								<svg class="station-timer" width="30" height="30" viewBox="0 0 30 30">
+									<circle cx="15" cy="15" r="12" fill="none" stroke="#e0e0e0" stroke-width="2"></circle>
+									<circle id="station-timer-progress" cx="15" cy="15" r="12" fill="none" stroke="#3498db"
+										stroke-width="2" stroke-dasharray="75" stroke-dashoffset="0"
+										transform="rotate(-90 15 15)"></circle>
+								</svg>
+							</div>
+
+							<div class="bike-icon text-center">
+								<i class="fas fa-bicycle"></i>
+							</div>
+							<h2 id="station-name" class="station-name text-center">Nombre de la Estación</h2>
+
+							<div class="progress">
+								<div id="bike-progress" class="progress-bar" role="progressbar" aria-valuenow="0"
+									aria-valuemin="0" aria-valuemax="100"></div>
+							</div>
+
+							<div class="stats-container">
+								<div class="row">
+									<div class="col-md-6">
+										<div class="stats-item">
+											<strong>Bicicletas disponibles:</strong>
+											<span id="bikes-available" class="stats-value">0</span>
+										</div>
+										<div class="stats-item">
+											<strong>Espacios disponibles:</strong>
+											<span id="space-status" class="stats-value">0/0</span>
+										</div>
+									</div>
+									<div class="col-md-6">
+										<div class="stats-item">
+											<strong>Tipos de bicicletas:</strong>
+										</div>
+										<div id="bike-types"></div>
+									</div>
 								</div>
-								<div id="bike-types"></div>
 							</div>
 						</div>
 					</div>
@@ -257,6 +435,7 @@
 		let stationInterval;
 		let stationTimerInterval;
 		let stationTimeLeft = 15; // 15 segundos para cambio de estación
+		let autoRotateEnabled = true; // Nueva variable para controlar la rotación automática
 
 		// Función principal que inicia todo
 		document.addEventListener('DOMContentLoaded', function () {
@@ -266,8 +445,76 @@
 				currentStationIndex = parseInt(savedIndex);
 			}
 
+			// Obtener el estado de rotación automática del localStorage (si existe)
+			const savedAutoRotate = localStorage.getItem('autoRotateEnabled');
+			if (savedAutoRotate !== null) {
+				autoRotateEnabled = savedAutoRotate === 'true';
+			}
+
 			fetchStationData();
 		});
+
+		// Función para alternar la visibilidad del sidebar
+		function toggleSidebar() {
+			const sidebar = document.getElementById('sidebar');
+			sidebar.classList.toggle('open');
+		}
+
+		// Función para actualizar el sidebar con la lista de estaciones
+		function updateStationList() {
+			const stationList = document.getElementById('station-list');
+			stationList.innerHTML = ''; // Limpiar lista actual
+			
+			stations.forEach((station, index) => {
+				const listItem = document.createElement('li');
+				listItem.className = 'station-item';
+				if (index === currentStationIndex) {
+					listItem.classList.add('active');
+					}
+				
+				// Calcular el porcentaje de bicicletas disponibles
+				const bikePercentage = Math.round((station.bikes / station.bikeRacks) * 100) || 0;
+				const progressBarClass = getProgressBarClass(station);
+				
+				listItem.innerHTML = `
+					<p class="station-name-sidebar">${station.name}</p>
+					<div class="mini-progress">
+						<div class="mini-progress-bar ${progressBarClass}" style="width: ${bikePercentage}%;"></div>
+					</div>
+				`;
+				
+				// Event listener para seleccionar estación
+				listItem.addEventListener('click', () => {
+					selectStation(index);
+					// Cerrar el sidebar en dispositivos móviles
+					if (window.innerWidth < 768) {
+						toggleSidebar();
+					}
+				});
+				
+				stationList.appendChild(listItem);
+			});
+		}
+
+		// Nueva función para seleccionar una estación manualmente
+		function selectStation(index) {
+			currentStationIndex = index;
+			showStation(currentStationIndex);
+			resetStationTimer();
+			
+			// Actualizar clase activa en la lista
+			const items = document.querySelectorAll('.station-item');
+			items.forEach((item, idx) => {
+				if (idx === index) {
+					item.classList.add('active');
+				} else {
+					item.classList.remove('active');
+				}
+			});
+			
+			// Guardar la estación actual en localStorage
+			localStorage.setItem('currentStationIndex', currentStationIndex);
+		}
 
 		// Función para obtener los datos de las estaciones
 		function fetchStationData() {
@@ -279,6 +526,9 @@
 					// Procesar los datos XML
 					processStationData(data);
 
+					// Actualizar la lista de estaciones en el sidebar
+					updateStationList();
+
 					// Mostrar la estación actual o la primera si es inicial
 					if (currentStationIndex >= stations.length) {
 						currentStationIndex = 0;
@@ -287,13 +537,16 @@
 
 					// Configurar el cambio automático de estación
 					if (stationInterval) clearInterval(stationInterval);
-					stationInterval = setInterval(() => {
-						currentStationIndex = (currentStationIndex + 1) % stations.length;
-						showStation(currentStationIndex);
-						resetStationTimer();
-						// Guardar la estación actual en localStorage
-						localStorage.setItem('currentStationIndex', currentStationIndex);
-					}, 15000); // Cambiar cada 15 segundos
+					if (autoRotateEnabled) {
+						stationInterval = setInterval(() => {
+							currentStationIndex = (currentStationIndex + 1) % stations.length;
+							showStation(currentStationIndex);
+							resetStationTimer();
+							updateStationList(); // Actualizar la indicación de estación activa
+							// Guardar la estación actual en localStorage
+							localStorage.setItem('currentStationIndex', currentStationIndex);
+						}, 15000); // Cambiar cada 15 segundos
+					}
 
 					// Iniciar el temporizador visual de la estación
 					resetStationTimer();
@@ -442,6 +695,23 @@
 			} else {
 				circle.style.stroke = "#3498db"; // azul
 			}
+		}
+
+		// Nueva función: Obtener la clase de la barra de progreso según el porcentaje
+		function getProgressBarClass(station) {
+			const percentage = Math.round((station.bikes / station.bikeRacks) * 100) || 0;
+			if (percentage < 20) {
+				return 'low';
+			} else if (percentage < 50) {
+				return 'medium';
+			} else {
+				return 'high';
+			}
+		}
+
+		// Nueva función: Obtener el ancho de la barra de progreso según el porcentaje
+		function getProgressBarWidth(station) {
+			return Math.round((station.bikes / station.bikeRacks) * 100) || 0;
 		}
 	</script>
 </body>

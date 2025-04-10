@@ -84,8 +84,7 @@
 			position: fixed;
 			top: 15px;
 			left: 15px;
-			background-color: #3498db;
-			color: white;
+			background-color: transparent;
 			border: none;
 			border-radius: 50%;
 			width: 40px;
@@ -96,8 +95,8 @@
 			display: flex;
 			justify-content: center;
 			align-items: center;
-			box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
 			transition: background-color 0.3s;
+			box-shadow: none;
 		}
 
 		/* Estilo para 3 rallitas del menú */
@@ -114,12 +113,12 @@
 			display: block;
 			height: 2px;
 			width: 100%;
-			background-color: white;
+			background-color: #3498db;
 			border-radius: 2px;
 		}
 
 		.menu-btn:hover {
-			background-color: #2980b9;
+			background-color: rgba(255, 255, 255, 0.2);
 		}
 
 		.station-list {
@@ -178,6 +177,43 @@
 			margin-bottom: 0;
 		}
 
+		.favorite-icon {
+			opacity: 0.9;
+			font-size: 0.85rem;
+			margin-right: 5px;
+			color: #f1c40f;
+			display: inline-block;
+		}
+		
+		.station-item:not(.favorite) .favorite-icon {
+			display: none;
+		}
+		
+		.station-item.favorite {
+			background: linear-gradient(145deg, rgba(52, 152, 219, 0.15), rgba(241, 196, 15, 0.1));
+			border-left: 3px solid #f1c40f;
+		}
+		
+		.station-item.favorite:hover {
+			background: linear-gradient(145deg, rgba(52, 152, 219, 0.25), rgba(241, 196, 15, 0.2));
+		}
+		
+		.station-item.favorite.active {
+			background: linear-gradient(145deg, #2980b9, #3498db);
+			border-left: 3px solid #f1c40f;
+		}
+		
+		.station-item .favorite-star-right {
+			display: none;
+			margin-left: 6px;
+			color: #f1c40f;
+			font-size: 0.8rem;
+		}
+		
+		.station-item.favorite .favorite-star-right {
+			display: inline-block;
+		}
+
 		.station-card {
 			border-radius: 12px;
 			box-shadow: 0 8px 12px rgba(0, 0, 0, 0.1);
@@ -209,6 +245,44 @@
 			margin-bottom: 10px;
 			text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 			letter-spacing: 0.5px;
+		}
+
+		/* Estilos para favoritos */
+		.favorite-btn {
+			position: absolute;
+			top: 16px;
+			right: 53px;
+			background: transparent;
+			border: none;
+			width: 22px;
+			height: 22px;
+			cursor: pointer;
+			z-index: 10;
+			transition: all 0.3s;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			padding: 0;
+		}
+
+		.favorite-btn svg {
+			width: 100%;
+			height: 100%;
+			fill: rgba(255, 255, 255, 0.4);
+			transition: fill 0.3s, transform 0.3s;
+		}
+
+		.favorite-btn:hover svg {
+			transform: scale(1.2);
+			fill: rgba(255, 255, 255, 0.8);
+		}
+
+		.favorite-btn.active svg {
+			fill: #f1c40f;
+		}
+
+		.favorite-btn i {
+			display: none;
 		}
 
 		.progress {
@@ -304,6 +378,45 @@
 			box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 		}
 
+		.nav-touch-area {
+			flex: 0 0 10%;
+			cursor: pointer;
+			transition: background-color 0.3s;
+			position: relative;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.nav-touch-area:active {
+			background-color: rgba(0, 0, 0, 0.1);
+		}
+
+		.nav-touch-area::after {
+			content: '';
+			position: absolute;
+			width: 20px;
+			height: 20px;
+			border-top: 3px solid rgba(0, 0, 0, 0.2);
+			border-right: 3px solid rgba(0, 0, 0, 0.2);
+			opacity: 0;
+			transition: opacity 0.3s;
+		}
+
+		.nav-touch-area:hover::after {
+			opacity: 0.8;
+		}
+
+		.left-area::after {
+			transform: rotate(-135deg);
+			left: 40%;
+		}
+
+		.right-area::after {
+			transform: rotate(45deg);
+			right: 40%;
+		}
+
 		@media (max-width: 576px) {
 			.sidebar.open {
 				width: 80%;
@@ -369,52 +482,60 @@
 	</button>
 
 	<div class="main-container">
-		<div class="content-container">
-			<div class="container">
-				<div id="station-container" class="row justify-content-center align-items-center w-100">
-					<div class="col-12 col-md-10 col-lg-6">
-						<div id="station-card" class="station-card p-4 animate__animated animate__fadeIn">
-							<!-- Add the logo container -->
-							<div class="station-logo-container">
-								<img src="./bilbaobizi-logo.png" alt="Bilbaobizi Logo" class="station-logo">
-							</div>
-							
-							<div class="station-timer-container">
-								<svg class="station-timer" width="30" height="30" viewBox="0 0 30 30">
-									<circle cx="15" cy="15" r="12" fill="none" stroke="#e0e0e0" stroke-width="2"></circle>
-									<circle id="station-timer-progress" cx="15" cy="15" r="12" fill="none" stroke="#3498db"
-										stroke-width="2" stroke-dasharray="75" stroke-dashoffset="0"
-										transform="rotate(-90 15 15)"></circle>
-								</svg>
-							</div>
+			<div id="left-nav-area" class="nav-touch-area left-area"></div>
+			<div class="content-container">
+				<div class="container">
+					<div id="station-container" class="row justify-content-center align-items-center w-100">
+						<div class="col-12 col-md-10 col-lg-6">
+							<div id="station-card" class="station-card p-4 animate__animated animate__fadeIn">
+								<div class="station-logo-container">
+									<img src="./bilbaobizi-logo.png" alt="Bilbaobizi Logo" class="station-logo">
+								</div>
+								
+								<div class="station-timer-container">
+									<svg class="station-timer" width="30" height="30" viewBox="0 0 30 30">
+										<circle cx="15" cy="15" r="12" fill="none" stroke="#e0e0e0" stroke-width="2"></circle>
+										<circle id="station-timer-progress" cx="15" cy="15" r="12" fill="none" stroke="#3498db"
+											stroke-width="2" stroke-dasharray="75" stroke-dashoffset="0"
+											transform="rotate(-90 15 15)"></circle>
+									</svg>
+								</div>
+								
+								<!-- Botón de favoritos con SVG definido directamente -->
+								<button id="favorite-btn" class="favorite-btn">
+									<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+										<path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14l-5-4.87 6.91-1.01L12 2z"/>
+									</svg>
+								</button>
 
-							<div class="bike-icon text-center">
-								<i class="fas fa-bicycle"></i>
-							</div>
-							<h2 id="station-name" class="station-name text-center">Nombre de la Estación</h2>
+								<div class="bike-icon text-center">
+									<i class="fas fa-bicycle"></i>
+								</div>
+								<h2 id="station-name" class="station-name text-center">Nombre de la Estación</h2>
 
-							<div class="progress">
-								<div id="bike-progress" class="progress-bar" role="progressbar" aria-valuenow="0"
-									aria-valuemin="0" aria-valuemax="100"></div>
-							</div>
+								<div class="progress">
+									<div id="bike-progress" class="progress-bar" role="progressbar" aria-valuenow="0"
+										aria-valuemin="0" aria-valuemax="100"></div>
+								</div>
 
-							<div class="stats-container">
-								<div class="row">
-									<div class="col-md-6">
-										<div class="stats-item">
-											<strong>Bicicletas disponibles:</strong>
-											<span id="bikes-available" class="stats-value">0</span>
+								<div class="stats-container">
+									<div class="row">
+										<div class="col-md-6">
+											<div class="stats-item">
+												<strong>Bicicletas disponibles:</strong>
+												<span id="bikes-available" class="stats-value">0</span>
+											</div>
+											<div class="stats-item">
+												<strong>Espacios disponibles:</strong>
+												<span id="space-status" class="stats-value">0/0</span>
+											</div>
 										</div>
-										<div class="stats-item">
-											<strong>Espacios disponibles:</strong>
-											<span id="space-status" class="stats-value">0/0</span>
+										<div class="col-md-6">
+											<div class="stats-item">
+												<strong>Tipos de bicicletas:</strong>
+											</div>
+											<div id="bike-types"></div>
 										</div>
-									</div>
-									<div class="col-md-6">
-										<div class="stats-item">
-											<strong>Tipos de bicicletas:</strong>
-										</div>
-										<div id="bike-types"></div>
 									</div>
 								</div>
 							</div>
@@ -422,11 +543,12 @@
 					</div>
 				</div>
 			</div>
+			<div id="right-nav-area" class="nav-touch-area right-area"></div>
 		</div>
-	</div>
 
 	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-	<script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+	<!-- Actualización de FontAwesome a la versión 6 -->
+	<script src="https://kit.fontawesome.com/7f6d9f8441.js" crossorigin="anonymous"></script>
 	<script>
 		// Variables globales
 		let stations = [];
@@ -435,7 +557,8 @@
 		let stationInterval;
 		let stationTimerInterval;
 		let stationTimeLeft = 15; // 15 segundos para cambio de estación
-		let autoRotateEnabled = true; // Nueva variable para controlar la rotación automática
+		let autoRotateEnabled = true; // Variable para controlar la rotación automática
+		let favorites = []; // Array para almacenar las estaciones favoritas
 
 		// Función principal que inicia todo
 		document.addEventListener('DOMContentLoaded', function () {
@@ -445,6 +568,12 @@
 				currentStationIndex = parseInt(savedIndex);
 			}
 
+			 // Recuperar favoritos del localStorage
+			const savedFavorites = localStorage.getItem('favorites');
+			if (savedFavorites) {
+				favorites = JSON.parse(savedFavorites);
+			}
+
 			// Obtener el estado de rotación automática del localStorage (si existe)
 			const savedAutoRotate = localStorage.getItem('autoRotateEnabled');
 			if (savedAutoRotate !== null) {
@@ -452,6 +581,20 @@
 			}
 
 			fetchStationData();
+
+			// Configurar botón de favoritos
+			document.getElementById('favorite-btn').addEventListener('click', toggleFavorite);
+
+			// Configurar navegación izquierda/derecha
+			document.getElementById('left-nav-area').addEventListener('click', () => {
+				currentStationIndex = (currentStationIndex - 1 + stations.length) % stations.length;
+				selectStation(currentStationIndex);
+			});
+
+			document.getElementById('right-nav-area').addEventListener('click', () => {
+				currentStationIndex = (currentStationIndex + 1) % stations.length;
+				selectStation(currentStationIndex);
+			});
 		});
 
 		// Función para alternar la visibilidad del sidebar
@@ -470,14 +613,23 @@
 				listItem.className = 'station-item';
 				if (index === currentStationIndex) {
 					listItem.classList.add('active');
-					}
+				}
+				
+				// Comprobar si la estación está en favoritos
+				if (favorites.includes(station.uid)) {
+					listItem.classList.add('favorite');
+				}
 				
 				// Calcular el porcentaje de bicicletas disponibles
 				const bikePercentage = Math.round((station.bikes / station.bikeRacks) * 100) || 0;
 				const progressBarClass = getProgressBarClass(station);
 				
+				// Usar caracteres Unicode de estrellas en lugar de FontAwesome
 				listItem.innerHTML = `
-					<p class="station-name-sidebar">${station.name}</p>
+					<p class="station-name-sidebar">
+						<span class="favorite-icon">★</span>
+						${station.name}
+					</p>
 					<div class="mini-progress">
 						<div class="mini-progress-bar ${progressBarClass}" style="width: ${bikePercentage}%;"></div>
 					</div>
@@ -612,6 +764,7 @@
 			const spaceStatus = document.getElementById('space-status');
 			const bikeProgress = document.getElementById('bike-progress');
 			const bikeTypes = document.getElementById('bike-types');
+			const favoriteBtn = document.getElementById('favorite-btn');
 
 			// Aplicar animación
 			stationCard.classList.remove('animate__fadeIn');
@@ -654,6 +807,13 @@
                         <span class="bike-type">Tipo ${type}: ${count}</span>
                     `;
 				});
+			}
+
+			// Actualizar estado del botón de favoritos
+			if (favorites.includes(station.uid)) {
+				favoriteBtn.classList.add('active');
+			} else {
+				favoriteBtn.classList.remove('active');
 			}
 		}
 
@@ -712,6 +872,30 @@
 		// Nueva función: Obtener el ancho de la barra de progreso según el porcentaje
 		function getProgressBarWidth(station) {
 			return Math.round((station.bikes / station.bikeRacks) * 100) || 0;
+		}
+
+		// Nueva función: Alternar el estado de favorito de una estación
+		function toggleFavorite() {
+			const station = stations[currentStationIndex];
+			if (!station) return;
+
+			const favoriteBtn = document.getElementById('favorite-btn');
+
+			if (favorites.includes(station.uid)) {
+				// Eliminar de favoritos
+				favorites = favorites.filter(uid => uid !== station.uid);
+				favoriteBtn.classList.remove('active');
+			} else {
+				// Añadir a favoritos
+				favorites.push(station.uid);
+				favoriteBtn.classList.add('active');
+			}
+
+			// Guardar favoritos en localStorage
+			localStorage.setItem('favorites', JSON.stringify(favorites));
+			
+			// Actualizar la lista de estaciones para reflejar el cambio
+			updateStationList();
 		}
 	</script>
 </body>

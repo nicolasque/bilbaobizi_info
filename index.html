@@ -290,6 +290,13 @@
 
 		function preloadImage(baseFileName) {
 			return new Promise((resolve) => {
+				// 💡 NUEVO: Comprobar si la imagen ya está precargada antes de hacer nada
+				if (preloadedImages.has(baseFileName)) {
+					console.log(`✅ Imagen ya en caché: ${baseFileName}`);
+					resolve(true);
+					return;
+				}
+
 				// Si ya sabemos que esta imagen no está disponible, no intentar cargarla
 				if (imageExtensions[baseFileName] === 'unavailable') {
 					resolve(false);
@@ -484,10 +491,10 @@
 				return;
 			}
 
-			// Crear nueva instancia de la imagen precargada
-			const img = new Image();
-			img.src = preloadedData.element.src;
-			img.classList.add('carousel-image');
+			// 💡 MEJORA CLAVE: Clonar el nodo de la imagen en lugar de crear uno nuevo
+			// Esto reutiliza la imagen ya cargada en memoria de forma mucho más eficiente.
+			const img = preloadedData.element.cloneNode(true);
+			img.className = 'carousel-image'; // Asegurarse de que las clases son correctas
 
 			// Calcular si usar contain o cover
 			const screenW = window.innerWidth;

@@ -1,920 +1,284 @@
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Bilbaobizi Monitor</title>
-	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
-	<style>
-		body {
-			background-color: #f8f9fa;
-			font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-			margin: 0;
-			padding: 0;
-			overflow-x: hidden;
-			min-height: 100vh;
-		}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Marco de Fotos Digital</title>
+    <style>
+        /* --- ESTILOS GENERALES Y DEL CONTENEDOR --- */
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden; /* Evita barras de scroll */
+            background-color: #000;
+            font-family: sans-serif;
+            color: white;
+        }
 
-		.main-container {
-			display: flex;
-			width: 100%;
-			min-height: 100vh;
-		}
+        #carousel-container {
+            position: relative;
+            width: 100vw; /* 100% del ancho de la ventana */
+            height: 100vh; /* 100% del alto de la ventana */
+            background-color: #000;
+        }
 
-		.content-container {
-			flex-grow: 1;
-			display: flex;
-			justify-content: center;
-			align-items: center;
-			padding: 10px;
-			transition: margin-left 0.3s ease;
-		}
+        /* --- ESTILOS DE LAS IMÁGENES --- */
+        .carousel-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* ¡LA MAGIA! Rellena el espacio sin deformar la imagen */
+            opacity: 0; /* Ocultas por defecto */
+            transition: opacity 1.5s ease-in-out; /* Transición suave para la opacidad */
+        }
+        
+        .carousel-image.visible {
+            opacity: 1; /* Hace visible la imagen activa */
+            z-index: 2; /* Se asegura que la imagen activa esté por encima de la anterior */
+        }
 
-		.container {
-			display: flex;
-			justify-content: center;
-			align-items: center;
-			width: 100%;
-			padding: 0;
-		}
+        /* --- CLASES DE ANIMACIÓN DE ENTRADA --- */
+        .anim-fade-in {
+            animation: fadeIn 1.5s ease-in-out;
+        }
+        .anim-slide-from-right {
+            animation: slideFromRight 1.2s cubic-bezier(0.250, 0.460, 0.450, 0.940);
+        }
+        .anim-slide-from-left {
+            animation: slideFromLeft 1.2s cubic-bezier(0.250, 0.460, 0.450, 0.940);
+        }
+        .anim-zoom-in {
+            animation: zoomIn 1.5s ease-out;
+        }
+        .anim-ken-burns {
+            animation: kenBurns 20s ease-in-out infinite alternate;
+        }
 
-		/* Sidebar styles */
-		.sidebar {
-			position: fixed;
-			height: 100%;
-			width: 0;
-			top: 0;
-			left: 0;
-			background-color: #2c3e50;
-			overflow-x: hidden;
-			transition: 0.3s;
-			z-index: 1000;
-			box-shadow: 3px 0 15px rgba(0, 0, 0, 0.1);
-		}
 
-		.sidebar.open {
-			width: 250px;
-		}
+        /* --- DEFINICIÓN DE LAS ANIMACIONES (KEYFRAMES) --- */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes slideFromRight {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+        @keyframes slideFromLeft {
+            from { transform: translateX(-100%); }
+            to { transform: translateX(0); }
+        }
+        @keyframes zoomIn {
+            from { opacity: 0; transform: scale(1.1); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes kenBurns {
+            from { transform: scale(1) translate(0, 0); }
+            to { transform: scale(1.15) translate(2%, -1%); }
+        }
 
-		.sidebar-header {
-			padding: 15px;
-			color: white;
-			border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-			display: flex;
-			justify-content: space-between;
-			align-items: center;
-		}
 
-		.sidebar-title {
-			font-size: 1.2rem;
-			margin: 0;
-		}
+        /* --- ÁREAS DE NAVEGACIÓN (IZQUIERDA/DERECHA) --- */
+        .nav-area {
+            position: absolute;
+            top: 0;
+            height: 100%;
+            width: 45%; /* Ocupan casi la mitad de la pantalla para ser fáciles de pulsar */
+            z-index: 10;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent; /* Evita el destello azul en móviles */
+        }
 
-		.close-btn {
-			color: white;
-			background: transparent;
-			border: none;
-			font-size: 1.5rem;
-			cursor: pointer;
-		}
+        #nav-left {
+            left: 0;
+        }
 
-		.menu-btn {
-			position: fixed;
-			top: 15px;
-			left: 15px;
-			background-color: transparent;
-			border: none;
-			border-radius: 50%;
-			width: 40px;
-			height: 40px;
-			font-size: 1.2rem;
-			cursor: pointer;
-			z-index: 999;
-			display: flex;
-			justify-content: center;
-			align-items: center;
-			transition: background-color 0.3s;
-			box-shadow: none;
-		}
+        #nav-right {
+            right: 0;
+        }
+        
+        /* Mensaje de carga inicial */
+        #loading-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 99;
+        }
 
-		/* Estilo para 3 rallitas del menú */
-		.menu-btn .hamburger {
-			width: 20px;
-			height: 16px;
-			position: relative;
-			display: flex;
-			flex-direction: column;
-			justify-content: space-between;
-		}
-
-		.menu-btn .hamburger span {
-			display: block;
-			height: 2px;
-			width: 100%;
-			background-color: #3498db;
-			border-radius: 2px;
-		}
-
-		.menu-btn:hover {
-			background-color: rgba(255, 255, 255, 0.2);
-		}
-
-		.station-list {
-			list-style: none;
-			padding: 0;
-			margin: 0;
-			overflow-y: auto;
-			max-height: calc(100% - 60px);
-		}
-
-		.station-item {
-			padding: 12px 15px;
-			border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-			color: rgba(255, 255, 255, 0.8);
-			cursor: pointer;
-			transition: background-color 0.2s;
-		}
-
-		.station-item:hover {
-			background-color: rgba(255, 255, 255, 0.1);
-		}
-
-		.station-item.active {
-			background-color: #3498db;
-			color: white;
-			font-weight: bold;
-		}
-
-		/* Estilos para la mini barra de progreso en el menú lateral */
-		.mini-progress {
-			height: 6px;
-			background-color: rgba(255, 255, 255, 0.15);
-			border-radius: 3px;
-			overflow: hidden;
-			margin-top: 5px;
-		}
-
-		.mini-progress-bar {
-			height: 100%;
-			transition: width 0.3s ease;
-		}
-
-		.mini-progress-bar.low {
-			background-color: #e74c3c;
-		}
-
-		.mini-progress-bar.medium {
-			background-color: #f39c12;
-		}
-
-		.mini-progress-bar.high {
-			background-color: #2ecc71;
-		}
-
-		.station-name-sidebar {
-			margin-bottom: 0;
-		}
-
-		.favorite-icon {
-			opacity: 0.9;
-			font-size: 0.85rem;
-			margin-right: 5px;
-			color: #f1c40f;
-			display: inline-block;
-		}
-		
-		.station-item:not(.favorite) .favorite-icon {
-			display: none;
-		}
-		
-		.station-item.favorite {
-			background: linear-gradient(145deg, rgba(52, 152, 219, 0.15), rgba(241, 196, 15, 0.1));
-			border-left: 3px solid #f1c40f;
-		}
-		
-		.station-item.favorite:hover {
-			background: linear-gradient(145deg, rgba(52, 152, 219, 0.25), rgba(241, 196, 15, 0.2));
-		}
-		
-		.station-item.favorite.active {
-			background: linear-gradient(145deg, #2980b9, #3498db);
-			border-left: 3px solid #f1c40f;
-		}
-		
-		.station-item .favorite-star-right {
-			display: none;
-			margin-left: 6px;
-			color: #f1c40f;
-			font-size: 0.8rem;
-		}
-		
-		.station-item.favorite .favorite-star-right {
-			display: inline-block;
-		}
-
-		.station-card {
-			border-radius: 12px;
-			box-shadow: 0 8px 12px rgba(0, 0, 0, 0.1);
-			overflow: hidden;
-			transition: transform 0.3s;
-			background: linear-gradient(145deg, #2b6cb0, #38b2ac);
-			color: white;
-			position: relative;
-			padding: 1.5rem 1rem !important;
-			width: 100%;
-			max-width: 500px;
-			margin: 0 auto;
-		}
-
-		.station-card:hover {
-			transform: translateY(-5px);
-			box-shadow: 0 15px 20px rgba(0, 0, 0, 0.15);
-		}
-
-		.bike-icon {
-			font-size: 1.8rem;
-			margin-bottom: 5px;
-			color: rgba(255, 255, 255, 0.9);
-		}
-
-		.station-name {
-			font-size: 1.4rem;
-			font-weight: 700;
-			margin-bottom: 10px;
-			text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-			letter-spacing: 0.5px;
-		}
-
-		/* Estilos para favoritos */
-		.favorite-btn {
-			position: absolute;
-			top: 18px;
-			right: 53px;
-			background: transparent;
-			border: none;
-			width: 22px;
-			height: 22px;
-			cursor: pointer;
-			z-index: 10;
-			transition: all 0.3s;
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			padding: 0;
-		}
-
-		.favorite-btn svg {
-			width: 100%;
-			height: 100%;
-			fill: rgba(255, 255, 255, 0.4);
-			transition: fill 0.3s, transform 0.3s;
-		}
-
-		.favorite-btn:hover svg {
-			transform: scale(1.2);
-			fill: rgba(255, 255, 255, 0.8);
-		}
-
-		.favorite-btn.active svg {
-			fill: #f1c40f;
-		}
-
-		.favorite-btn i {
-			display: none;
-		}
-
-		.progress {
-			height: 20px;
-			margin: 12px 0;
-			background-color: rgba(255, 255, 255, 0.2);
-			border-radius: 12px;
-			overflow: hidden;
-		}
-
-		.progress-bar {
-			background-color: #27ae60;
-			font-weight: bold;
-			transition: width 1s ease-in-out;
-			text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-			font-size: 0.9rem;
-		}
-
-		.stats-container {
-			padding: 12px;
-			background-color: rgba(255, 255, 255, 0.1);
-			border-radius: 10px;
-			margin-top: 15px;
-			backdrop-filter: blur(5px);
-		}
-
-		.stats-item {
-			margin-bottom: 8px;
-			font-size: 1rem;
-			display: flex;
-			align-items: center;
-			justify-content: space-between;
-		}
-
-		.stats-item strong {
-			font-weight: 600;
-		}
-
-		.stats-value {
-			font-weight: bold;
-			background-color: rgba(255, 255, 255, 0.15);
-			padding: 4px 12px;
-			border-radius: 30px;
-		}
-
-		.station-timer-container {
-			position: absolute;
-			top: 15px;
-			right: 15px;
-			z-index: 10;
-			pointer-events: none;
-			animation: pulse 1s infinite alternate;
-		}
-
-		.station-logo-container {
-			position: absolute;
-			top: 15px;
-			left: 15px;
-			z-index: 10;
-			width: 30px;
-			height: 30px;
-		}
-
-		.station-logo {
-			width: 100%;
-			height: 100%;
-			object-fit: contain;
-			display: block;
-		}
-
-		.station-timer {
-			display: block;
-		}
-
-		@keyframes pulse {
-			from {
-				opacity: 0.7;
-			}
-
-			to {
-				opacity: 1;
-			}
-		}
-
-		.bike-type {
-			display: inline-block;
-			padding: 4px 10px;
-			border-radius: 30px;
-			font-size: 0.85rem;
-			margin-right: 5px;
-			margin-bottom: 5px;
-			background-color: rgba(255, 255, 255, 0.2);
-			box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-		}
-
-		.nav-touch-area {
-			flex: 0 0 10%;
-			cursor: pointer;
-			transition: background-color 0.3s;
-			position: relative;
-			display: flex;
-			align-items: center;
-			justify-content: center;
-		}
-
-		.nav-touch-area:active {
-			background-color: rgba(0, 0, 0, 0.1);
-		}
-
-		.nav-touch-area::after {
-			content: '';
-			position: absolute;
-			width: 20px;
-			height: 20px;
-			border-top: 3px solid rgba(0, 0, 0, 0.2);
-			border-right: 3px solid rgba(0, 0, 0, 0.2);
-			opacity: 0;
-			transition: opacity 0.3s;
-		}
-
-		.nav-touch-area:hover::after {
-			opacity: 0.8;
-		}
-
-		.left-area::after {
-			transform: rotate(-135deg);
-			left: 40%;
-		}
-
-		.right-area::after {
-			transform: rotate(45deg);
-			right: 40%;
-		}
-
-		/* Estilos para animación de transición más suave */
-		.animate__fadeIn {
-			animation-duration: 1.2s !important;
-			animation-fill-mode: both;
-			opacity: 0;
-			animation-name: customFadeIn;
-		}
-
-		@keyframes customFadeIn {
-			from {
-				opacity: 0.8;
-			}
-			to {
-				opacity: 1;
-			}
-		}
-
-		@media (max-width: 576px) {
-			.sidebar.open {
-				width: 80%;
-			}
-
-			.station-card {
-				padding: 1.2rem 0.8rem !important;
-				max-width: 95%;
-			}
-
-			.station-name {
-				font-size: 1.2rem;
-				margin-bottom: 8px;
-			}
-
-			.bike-icon {
-				font-size: 1.5rem;
-			}
-
-			.stats-item {
-				font-size: 0.9rem;
-			}
-
-			.stats-value {
-				padding: 3px 8px;
-			}
-
-			.bike-type {
-				font-size: 0.75rem;
-				padding: 3px 8px;
-				margin-right: 3px;
-				margin-bottom: 3px;
-			}
-		}
-
-		@media (max-width: 400px) {
-			.col-md-6 {
-				width: 100%;
-			}
-		}
-	</style>
+    </style>
 </head>
-
 <body>
-	<!-- Sidebar menu -->
-	<div id="sidebar" class="sidebar">
-		<div class="sidebar-header">
-			<h3 class="sidebar-title">Estaciones</h3>
-			<button class="close-btn" onclick="toggleSidebar()">&times;</button>
-		</div>
-		<ul id="station-list" class="station-list">
-			<!-- Station items will be added here dynamically -->
-		</ul>
-	</div>
 
-	<!-- Menu toggle button -->
-	<button class="menu-btn" onclick="toggleSidebar()">
-		<div class="hamburger">
-			<span></span>
-			<span></span>
-			<span></span>
-		</div>
-	</button>
+    <div id="carousel-container">
+        <div id="loading-message">Cargando fotos...</div>
+    </div>
+    
+    <div class="nav-area" id="nav-left"></div>
+    <div class="nav-area" id="nav-right"></div>
 
-	<div class="main-container">
-			<div id="left-nav-area" class="nav-touch-area left-area"></div>
-			<div class="content-container">
-				<div class="container">
-					<div id="station-container" class="row justify-content-center align-items-center w-100">
-						<div class="col-12 col-md-10 col-lg-6">
-							<div id="station-card" class="station-card p-4 animate__animated animate__fadeIn">
-								<div class="station-logo-container">
-									<img src="./bilbaobizi-logo.png" alt="Bilbaobizi Logo" class="station-logo">
-								</div>
-								
-								<div class="station-timer-container">
-									<svg class="station-timer" width="30" height="30" viewBox="0 0 30 30">
-										<circle cx="15" cy="15" r="12" fill="none" stroke="#e0e0e0" stroke-width="2"></circle>
-										<circle id="station-timer-progress" cx="15" cy="15" r="12" fill="none" stroke="#3498db"
-											stroke-width="2" stroke-dasharray="75" stroke-dashoffset="0"
-											transform="rotate(-90 15 15)"></circle>
-									</svg>
-								</div>
-								
-								<!-- Botón de favoritos con SVG definido directamente -->
-								<button id="favorite-btn" class="favorite-btn">
-									<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-										<path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14l-5-4.87 6.91-1.01L12 2z"/>
-									</svg>
-								</button>
+    <script>
+    // --- CONFIGURACIÓN ---
+    
+    // 1. ¡ÚNICO DATO A ACTUALIZAR!
+    // Pon aquí el número total de fotos que tienes en la carpeta "imagenes".
+    const NUMERO_TOTAL_DE_FOTOS = 15; // <-- Cambia este número
 
-								<div class="bike-icon text-center">
-									<i class="fas fa-bicycle"></i>
-								</div>
-								<h2 id="station-name" class="station-name text-center">Nombre de la Estación</h2>
+    // 2. Extensión de imagen por defecto.
+    // El código intentará cargar 'fotoX.jpg', 'fotoX.png', etc.
+    // Pon aquí la extensión más común de tus fotos para que las cargue más rápido.
+    const EXTENSION_POR_DEFECTO = 'jpg';
+    
+    // 3. Tiempo en segundos que cada foto permanece visible.
+    const PHOTO_INTERVAL_SECONDS = 12;
 
-								<div class="progress">
-									<div id="bike-progress" class="progress-bar" role="progressbar" aria-valuenow="0"
-										aria-valuemin="0" aria-valuemax="100"></div>
-								</div>
+    // 4. Carpeta donde guardas las imágenes.
+    const IMAGE_FOLDER = 'imagenes/';
 
-								<div class="stats-container">
-									<div class="row">
-										<div class="col-md-6">
-											<div class="stats-item">
-												<strong>Bicicletas disponibles:</strong>
-												<span id="bikes-available" class="stats-value">0</span>
-											</div>
-											<div class="stats-item">
-												<strong>Espacios disponibles:</strong>
-												<span id="space-status" class="stats-value">0/0</span>
-											</div>
-										</div>
-										<div class="col-md-6">
-											<div class="stats-item">
-												<strong>Tipos de bicicletas:</strong>
-											</div>
-											<div id="bike-types"></div>
-										</div>
-									</div>
-								</div>
-							</div>
-						</div>
-					</div>
-				</div>
-			</div>
-			<div id="right-nav-area" class="nav-touch-area right-area"></div>
-		</div>
+    // 5. Lista de animaciones de entrada posibles.
+    const ENTRY_ANIMATIONS = [
+        'anim-fade-in', 
+        'anim-slide-from-right', 
+        'anim-slide-from-left', 
+        'anim-zoom-in'
+    ];
+    
+    // --- FIN DE LA CONFIGURACIÓN ---
 
-	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-	<!-- Actualización de FontAwesome a la versión 6 -->
-	<script src="https://kit.fontawesome.com/7f6d9f8441.js" crossorigin="anonymous"></script>
-	<script>
-		// Variables globales
-		let stations = [];
-		let currentStationIndex = 0;
-		let updateInterval;
-		let stationInterval;
-		let stationTimerInterval;
-		let stationTimeLeft = 15; // 15 segundos para cambio de estación
-		let autoRotateEnabled = true; // Variable para controlar la rotación automática
-		let favorites = []; // Array para almacenar las estaciones favoritas
 
-		// Función principal que inicia todo
-		document.addEventListener('DOMContentLoaded', function () {
-			// Recuperar la última estación visitada del localStorage
-			const savedIndex = localStorage.getItem('currentStationIndex');
-			if (savedIndex !== null) {
-				currentStationIndex = parseInt(savedIndex);
-			}
+    // --- LÓGICA DEL CARRUSEL (Generación automática de la lista) ---
+    
+    const imageFiles = [];
+    for (let i = 1; i <= NUMERO_TOTAL_DE_FOTOS; i++) {
+        // Asumimos una extensión por defecto, ya que el script de bash mantiene la original.
+        // El navegador probará 'fotoX.jpg', luego 'fotoX.png', etc. si la primera falla.
+        // Esta es una simplificación; para un sistema robusto, necesitaríamos saber cada extensión.
+        // Pero como el script de renombrado las mantiene, esto funcionará si la mayoría son .jpg
+        // Para ser 100% precisos, lo mejor es que todas tus fotos tengan la misma extensión.
+        imageFiles.push(`foto${i}.${EXTENSION_POR_DEFECTO}`);
+    }
+    
+    // El resto de la lógica del carrusel permanece igual...
+    // (Pega aquí el resto del código JavaScript del carrusel de la respuesta anterior)
 
-			 // Recuperar favoritos del localStorage
-			const savedFavorites = localStorage.getItem('favorites');
-			if (savedFavorites) {
-				favorites = JSON.parse(savedFavorites);
-			}
+    const container = document.getElementById('carousel-container');
+    const navLeft = document.getElementById('nav-left');
+    const navRight = document.getElementById('nav-right');
+    const loadingMessage = document.getElementById('loading-message');
 
-			// Obtener el estado de rotación automática del localStorage (si existe)
-			const savedAutoRotate = localStorage.getItem('autoRotateEnabled');
-			if (savedAutoRotate !== null) {
-				autoRotateEnabled = savedAutoRotate === 'true';
-			}
+    let shuffledIndices = [];
+    let currentIndex = -1;
+    let autoplayTimer;
 
-			fetchStationData();
+    // Función para barajar un array (algoritmo Fisher-Yates)
+    function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+    }
 
-			// Configurar botón de favoritos
-			document.getElementById('favorite-btn').addEventListener('click', toggleFavorite);
+    function showImage(index) {
+        const oldImages = container.querySelectorAll('.carousel-image');
+        oldImages.forEach(img => {
+            img.classList.remove('visible');
+            setTimeout(() => {
+                if (container.contains(img)) {
+                    container.removeChild(img);
+                }
+            }, 2000);
+        });
+        
+        if (loadingMessage) {
+            loadingMessage.style.display = 'none';
+        }
 
-			// Configurar navegación izquierda/derecha
-			document.getElementById('left-nav-area').addEventListener('click', () => {
-				currentStationIndex = (currentStationIndex - 1 + stations.length) % stations.length;
-				selectStation(currentStationIndex);
-			});
+        const img = document.createElement('img');
+        const baseFileName = imageFiles[index];
+        img.src = IMAGE_FOLDER + baseFileName;
+        
+        // Manejador de error por si la extensión por defecto no es la correcta
+        img.onerror = function() {
+            const extensionsToTry = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+            let currentExt = baseFileName.split('.').pop();
+            let nextExtIndex = (extensionsToTry.indexOf(currentExt) + 1) % extensionsToTry.length;
+            let triedAll = false;
+            
+            while(this.src.endsWith(extensionsToTry[nextExtIndex]) === false && !triedAll) {
+                 let nextSrc = IMAGE_FOLDER + baseFileName.replace(currentExt, extensionsToTry[nextExtIndex]);
+                 if(this.src !== nextSrc) {
+                     this.src = nextSrc;
+                     break;
+                 }
+                 nextExtIndex = (nextExtIndex + 1) % extensionsToTry.length;
+                 if(extensionsToTry.indexOf(currentExt) === nextExtIndex) triedAll = true;
+            }
+        };
 
-			document.getElementById('right-nav-area').addEventListener('click', () => {
-				currentStationIndex = (currentStationIndex + 1) % stations.length;
-				selectStation(currentStationIndex);
-			});
-		});
+        img.classList.add('carousel-image');
+        
+        const randomAnimation = ENTRY_ANIMATIONS[Math.floor(Math.random() * ENTRY_ANIMATIONS.length)];
+        img.classList.add(randomAnimation);
 
-		// Función para alternar la visibilidad del sidebar
-		function toggleSidebar() {
-			const sidebar = document.getElementById('sidebar');
-			sidebar.classList.toggle('open');
-		}
+        if (Math.random() > 0.5) {
+            img.classList.add('anim-ken-burns');
+        }
 
-		// Función para actualizar el sidebar con la lista de estaciones
-		function updateStationList() {
-			const stationList = document.getElementById('station-list');
-			stationList.innerHTML = ''; // Limpiar lista actual
-			
-			stations.forEach((station, index) => {
-				const listItem = document.createElement('li');
-				listItem.className = 'station-item';
-				if (index === currentStationIndex) {
-					listItem.classList.add('active');
-				}
-				
-				// Comprobar si la estación está en favoritos
-				if (favorites.includes(station.uid)) {
-					listItem.classList.add('favorite');
-				}
-				
-				// Calcular el porcentaje de bicicletas disponibles
-				const bikePercentage = Math.round((station.bikes / station.bikeRacks) * 100) || 0;
-				const progressBarClass = getProgressBarClass(station);
-				
-				// Usar caracteres Unicode de estrellas en lugar de FontAwesome
-				listItem.innerHTML = `
-					<p class="station-name-sidebar">
-						<span class="favorite-icon">★</span>
-						${station.name}
-					</p>
-					<div class="mini-progress">
-						<div class="mini-progress-bar ${progressBarClass}" style="width: ${bikePercentage}%;"></div>
-					</div>
-				`;
-				
-				// Event listener para seleccionar estación
-				listItem.addEventListener('click', () => {
-					selectStation(index);
-					// Cerrar el sidebar en dispositivos móviles
-					if (window.innerWidth < 768) {
-						toggleSidebar();
-					}
-				});
-				
-				stationList.appendChild(listItem);
-			});
-		}
+        container.appendChild(img);
+        
+        void img.offsetWidth;
 
-		// Nueva función para seleccionar una estación manualmente
-		function selectStation(index) {
-			currentStationIndex = index;
-			showStation(currentStationIndex);
-			resetStationTimer();
-			
-			// Actualizar clase activa en la lista
-			const items = document.querySelectorAll('.station-item');
-			items.forEach((item, idx) => {
-				if (idx === index) {
-					item.classList.add('active');
-				} else {
-					item.classList.remove('active');
-				}
-			});
-			
-			// Guardar la estación actual en localStorage
-			localStorage.setItem('currentStationIndex', currentStationIndex);
-		}
+        img.classList.add('visible');
+    }
 
-		// Función para obtener los datos de las estaciones
-		function fetchStationData() {
-			// Fetch XML data from the provided URL
-			fetch('https://iframe.nextbike.net/maps/nextbike-live.xml?&city=532&domains=bo')
-				.then(response => response.text())
-				.then(str => new window.DOMParser().parseFromString(str, "text/xml"))
-				.then(data => {
-					// Procesar los datos XML
-					processStationData(data);
+    function nextImage() {
+        currentIndex++;
+        if (currentIndex >= shuffledIndices.length) {
+            currentIndex = 0;
+            shuffleArray(shuffledIndices);
+        }
+        showImage(shuffledIndices[currentIndex]);
+        resetAutoplay();
+    }
 
-					// Actualizar la lista de estaciones en el sidebar
-					updateStationList();
+    function prevImage() {
+        currentIndex--;
+        if (currentIndex < 0) {
+            currentIndex = shuffledIndices.length - 1;
+        }
+        showImage(shuffledIndices[currentIndex]);
+        resetAutoplay();
+    }
 
-					// Mostrar la estación actual o la primera si es inicial
-					if (currentStationIndex >= stations.length) {
-						currentStationIndex = 0;
-					}
-					showStation(currentStationIndex);
+    function startAutoplay() {
+        autoplayTimer = setInterval(nextImage, PHOTO_INTERVAL_SECONDS * 1000);
+    }
 
-					// Configurar el cambio automático de estación
-					if (stationInterval) clearInterval(stationInterval);
-					if (autoRotateEnabled) {
-						stationInterval = setInterval(() => {
-							currentStationIndex = (currentStationIndex + 1) % stations.length;
-							showStation(currentStationIndex);
-							resetStationTimer();
-							updateStationList(); // Actualizar la indicación de estación activa
-							// Guardar la estación actual en localStorage
-							localStorage.setItem('currentStationIndex', currentStationIndex);
-						}, 15000); // Cambiar cada 15 segundos
-					}
+    function resetAutoplay() {
+        clearInterval(autoplayTimer);
+        startAutoplay();
+    }
 
-					// Iniciar el temporizador visual de la estación
-					resetStationTimer();
+    function init() {
+        if (!imageFiles || imageFiles.length === 0) {
+            loadingMessage.textContent = "El número total de fotos es cero.";
+            return;
+        }
+        
+        shuffledIndices = Array.from(Array(imageFiles.length).keys());
+        shuffleArray(shuffledIndices);
+        
+        navLeft.addEventListener('click', prevImage);
+        navRight.addEventListener('click', nextImage);
+        
+        nextImage();
+    }
 
-					// Configurar la actualización periódica de datos
-					if (updateInterval) clearInterval(updateInterval);
-					updateInterval = setInterval(fetchStationData, 300000); // 5 minutos
-				})
-				.catch(error => {
-					console.error('Error al obtener datos de las estaciones:', error);
-				});
-		}
-
-		// Procesar los datos XML de las estaciones
-		function processStationData(xmlData) {
-			stations = [];
-			const places = xmlData.querySelectorAll('place');
-
-			places.forEach(place => {
-				// Extraer información de la estación
-				const bikes = parseInt(place.getAttribute('bikes') || 0);
-				const bikeRacks = parseInt(place.getAttribute('bike_racks') || 0);
-				const freeRacks = parseInt(place.getAttribute('free_racks') || 0);
-
-				// Procesar los tipos de bicicletas (viene como JSON en string)
-				let bikeTypes = {};
-				try {
-					const bikeTypesStr = place.getAttribute('bike_types');
-					if (bikeTypesStr) {
-						// Convertir el formato "{\\\"120\\\":1,\\\"194\\\":4,\\\"204\\\":1}" a objeto
-						const cleanStr = bikeTypesStr.replace(/\\/g, '').replace(/"/g, '"');
-						bikeTypes = JSON.parse(cleanStr.replace(/'/g, '"'));
-					}
-				} catch (error) {
-					console.error('Error al procesar tipos de bicicletas:', error);
-				}
-
-				// Crear objeto de estación
-				const station = {
-					uid: place.getAttribute('uid'),
-					name: place.getAttribute('name'),
-					bikes: bikes,
-					bikeRacks: bikeRacks,
-					freeRacks: freeRacks,
-					bikeTypes: bikeTypes,
-					latitude: place.getAttribute('lat'),
-					longitude: place.getAttribute('lng')
-				};
-
-				stations.push(station);
-			});
-		}
-
-		// Mostrar datos de una estación
-		function showStation(index) {
-			const station = stations[index];
-			if (!station) return;
-
-			// Elementos de la UI
-			const stationCard = document.getElementById('station-card');
-			const stationName = document.getElementById('station-name');
-			const bikesAvailable = document.getElementById('bikes-available');
-			const spaceStatus = document.getElementById('space-status');
-			const bikeProgress = document.getElementById('bike-progress');
-			const bikeTypes = document.getElementById('bike-types');
-			const favoriteBtn = document.getElementById('favorite-btn');
-
-			// Aplicar animación
-			stationCard.classList.remove('animate__fadeIn');
-			void stationCard.offsetWidth; // Truco para reiniciar la animación
-			stationCard.classList.add('animate__fadeIn');
-
-			// Actualizar información
-			stationName.textContent = station.name;
-			bikesAvailable.textContent = station.bikes;
-
-			// Nuevo formato para espacios: "disponibles/total"
-			spaceStatus.textContent = `${station.freeRacks}/${station.bikeRacks}`;
-
-			// Calcular porcentaje de bicicletas disponibles
-			const occupancyPercentage = Math.round((station.bikes / station.bikeRacks) * 100) || 0;
-
-			// Actualizar barra de progreso con animación
-			setTimeout(() => {
-				bikeProgress.style.width = `${occupancyPercentage}%`;
-				bikeProgress.textContent = `${occupancyPercentage}%`;
-
-				// Cambiar color según disponibilidad
-				if (occupancyPercentage < 20) {
-					bikeProgress.classList.remove('bg-success', 'bg-warning');
-					bikeProgress.classList.add('bg-danger');
-				} else if (occupancyPercentage < 50) {
-					bikeProgress.classList.remove('bg-success', 'bg-danger');
-					bikeProgress.classList.add('bg-warning');
-				} else {
-					bikeProgress.classList.remove('bg-warning', 'bg-danger');
-					bikeProgress.classList.add('bg-success');
-				}
-			}, 200);
-
-			// Mostrar tipos de bicicletas
-			bikeTypes.innerHTML = '';
-			if (station.bikeTypes) {
-				Object.entries(station.bikeTypes).forEach(([type, count]) => {
-					bikeTypes.innerHTML += `
-                        <span class="bike-type">Tipo ${type}: ${count}</span>
-                    `;
-				});
-			}
-
-			// Actualizar estado del botón de favoritos
-			if (favorites.includes(station.uid)) {
-				favoriteBtn.classList.add('active');
-			} else {
-				favoriteBtn.classList.remove('active');
-			}
-		}
-
-		// Nueva función: Gestionar el temporizador visual para el cambio de estación
-		function resetStationTimer() {
-			stationTimeLeft = 15; // 15 segundos
-			if (stationTimerInterval) clearInterval(stationTimerInterval);
-
-			updateStationTimerDisplay();
-
-			stationTimerInterval = setInterval(() => {
-				stationTimeLeft--;
-				updateStationTimerDisplay();
-
-				if (stationTimeLeft <= 0) {
-					clearInterval(stationTimerInterval);
-				}
-			}, 1000);
-		}
-
-		// Nueva función: Actualizar el círculo de progreso del temporizador de estación
-		function updateStationTimerDisplay() {
-			const circle = document.getElementById('station-timer-progress');
-			if (!circle) return;
-
-			// El círculo completo tiene un valor de circunferencia de aproximadamente 75.4 (2*PI*r)
-			// Calculamos qué porcentaje del círculo debe ser visible
-			const circumference = 2 * Math.PI * 12;
-			const offset = circumference * (1 - stationTimeLeft / 15); // Ajustado a 15 segundos
-
-			// Actualizar el círculo
-			circle.style.strokeDashoffset = offset;
-
-			// Cambiar el color cuando queden pocos segundos
-			if (stationTimeLeft < 5) {
-				circle.style.stroke = "#e74c3c"; // rojo
-			} else if (stationTimeLeft < 7) { // Ajustado de 10 a 7 (casi mitad de 15)
-				circle.style.stroke = "#f39c12"; // naranja
-			} else {
-				circle.style.stroke = "#3498db"; // azul
-			}
-		}
-
-		// Nueva función: Obtener la clase de la barra de progreso según el porcentaje
-		function getProgressBarClass(station) {
-			const percentage = Math.round((station.bikes / station.bikeRacks) * 100) || 0;
-			if (percentage < 20) {
-				return 'low';
-			} else if (percentage < 50) {
-				return 'medium';
-			} else {
-				return 'high';
-			}
-		}
-
-		// Nueva función: Obtener el ancho de la barra de progreso según el porcentaje
-		function getProgressBarWidth(station) {
-			return Math.round((station.bikes / station.bikeRacks) * 100) || 0;
-		}
-
-		// Nueva función: Alternar el estado de favorito de una estación
-		function toggleFavorite() {
-			const station = stations[currentStationIndex];
-			if (!station) return;
-
-			const favoriteBtn = document.getElementById('favorite-btn');
-
-			if (favorites.includes(station.uid)) {
-				// Eliminar de favoritos
-				favorites = favorites.filter(uid => uid !== station.uid);
-				favoriteBtn.classList.remove('active');
-			} else {
-				// Añadir a favoritos
-				favorites.push(station.uid);
-				favoriteBtn.classList.add('active');
-			}
-
-			// Guardar favoritos en localStorage
-			localStorage.setItem('favorites', JSON.stringify(favorites));
-			
-			// Actualizar la lista de estaciones para reflejar el cambio
-			updateStationList();
-		}
-	</script>
+    init();
+</script>
 </body>
-
 </html>

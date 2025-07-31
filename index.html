@@ -3,7 +3,11 @@
 
 <head>
 	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+	<meta name="mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+	<meta name="theme-color" content="#000000">
 	<title>Marco de Fotos Digital</title>
 	<style>
 		/* --- ESTILOS GENERALES Y DEL CONTENEDOR --- */
@@ -18,6 +22,32 @@
 			background-color: #000;
 			font-family: sans-serif;
 			color: white;
+			/* Estilos para ocultar barras del navegador en móviles */
+			-webkit-overflow-scrolling: touch;
+			position: fixed;
+			top: 0;
+			left: 0;
+		}
+
+		/* Soporte específico para iOS */
+		@supports (-webkit-touch-callout: none) {
+
+			body,
+			html {
+				height: -webkit-fill-available;
+				min-height: -webkit-fill-available;
+			}
+		}
+
+		/* Asegurar pantalla completa en móviles */
+		html {
+			height: 100vh;
+			height: -webkit-fill-available;
+		}
+
+		body {
+			min-height: 100vh;
+			min-height: -webkit-fill-available;
 		}
 
 		#carousel-container {
@@ -27,6 +57,34 @@
 			height: 100vh;
 			/* 100% del alto de la ventana */
 			background-color: #000;
+			/* Estilos para ocultar barra de navegación en móviles */
+			overscroll-behavior: none;
+			-webkit-overscroll-behavior: none;
+			overscroll-behavior-y: none;
+			/* Forzar pantalla completa en móviles */
+			min-height: 100vh;
+			min-height: -webkit-fill-available;
+		}
+
+		/* Evitar scroll en el body para ocultar barra de navegación */
+		body {
+			overscroll-behavior: none;
+			-webkit-overscroll-behavior: none;
+		}
+
+		/* Ocultar elementos de interfaz del navegador */
+		*::-webkit-scrollbar {
+			display: none;
+		}
+
+		/* Evitar selección de texto que puede mostrar barras */
+		* {
+			-webkit-user-select: none;
+			-moz-user-select: none;
+			-ms-user-select: none;
+			user-select: none;
+			-webkit-touch-callout: none;
+			-webkit-tap-highlight-color: transparent;
 		}
 
 		/* --- ESTILOS DE LAS IMÁGENES --- */
@@ -261,68 +319,62 @@
 					return;
 				}
 
-				// Probar extensiones en paralelo para detectar más rápido
-				const extensions = ['jpg', 'gif' ]; //'jpeg', 'png', 'webp', 'bmp', 'svg' por si acaso se necesita actualizar
-				let resolved = false;
-				let loadedCount = 0;
+				// Probar extensiones secuencialmente - solo una a la vez
+				const extensions = ['jpg', 'gif', 'jpeg', 'png', 'webp'];
+				let currentIndex = 0;
 
 				console.log(`🔍 Detectando extensión para: ${baseFileName}`);
 
-				extensions.forEach(ext => {
+				function tryNextExtension() {
+					// Si ya probamos todas las extensiones, marcar como no disponible
+					if (currentIndex >= extensions.length) {
+						imageExtensions[baseFileName] = 'unavailable';
+						console.warn(`❌ No se encontró extensión válida para: ${baseFileName}`);
+						resolve(false);
+						return;
+					}
+
+					const ext = extensions[currentIndex];
+					currentIndex++;
+
 					const img = new Image();
 
-					// Timeout de 8 segundos por extensión
-					const timeout = setTimeout(() => {
-						if (!resolved) {
-							img.onload = null;
-							img.onerror = null;
-							img.src = '';
-							loadedCount++;
+					console.log(`🔎 Probando: ${baseFileName}.${ext}`);
 
-							if (loadedCount >= extensions.length) {
-								// Todas las extensiones fallaron
-								imageExtensions[baseFileName] = 'unavailable';
-								console.warn(`❌ No se encontró extensión válida para: ${baseFileName}`);
-								if (!resolved) {
-									resolved = true;
-									resolve(false);
-								}
-							}
-						}
-					}, 8000);
+					// Timeout de 5 segundos por extensión
+					const timeout = setTimeout(() => {
+						img.onload = null;
+						img.onerror = null;
+						img.src = ''; // Cancelar request
+						console.warn(`⏰ Timeout: ${baseFileName}.${ext}`);
+						tryNextExtension(); // Probar siguiente extensión
+					}, 5000);
 
 					img.onload = function () {
 						clearTimeout(timeout);
-						if (!resolved) {
-							resolved = true;
-							imageExtensions[baseFileName] = ext;
-							preloadedImages.set(baseFileName, {
-								element: this,
-								width: this.naturalWidth,
-								height: this.naturalHeight,
-								extension: ext
-							});
-							console.log(`✅ Detectada y cargada: ${baseFileName}.${ext}`);
-							resolve(true);
-						}
+						imageExtensions[baseFileName] = ext;
+						preloadedImages.set(baseFileName, {
+							element: this,
+							width: this.naturalWidth,
+							height: this.naturalHeight,
+							extension: ext
+						});
+						console.log(`✅ Detectada y cargada: ${baseFileName}.${ext}`);
+						resolve(true);
 					};
 
 					img.onerror = function () {
 						clearTimeout(timeout);
-						loadedCount++;
-
-						if (loadedCount >= extensions.length && !resolved) {
-							// Todas las extensiones fallaron
-							imageExtensions[baseFileName] = 'unavailable';
-							console.warn(`❌ No se encontró extensión válida para: ${baseFileName}`);
-							resolved = true;
-							resolve(false);
-						}
+						console.log(`❌ Falló: ${baseFileName}.${ext}`);
+						tryNextExtension(); // Probar siguiente extensión
 					};
 
 					// Establecer la fuente para iniciar la carga
 					img.src = IMAGE_FOLDER + baseFileName + '.' + ext;
-				});
+				}
+
+				// Comenzar con la primera extensión
+				tryNextExtension();
 			});
 		}
 
@@ -611,6 +663,77 @@
 			// Iniciar precarga
 			preloadAllImages();
 		}
+
+		// Función para ocultar la barra de navegación en móviles
+		function hideAddressBar() {
+			// Forzar scroll hacia arriba para ocultar la barra de direcciones
+			window.scrollTo(0, 1);
+			setTimeout(() => {
+				window.scrollTo(0, 0);
+			}, 0);
+		}
+
+		// Función para intentar modo pantalla completa
+		function enterFullscreen() {
+			const element = document.documentElement;
+
+			if (element.requestFullscreen) {
+				element.requestFullscreen().catch(err => {
+					console.log('Fullscreen no disponible:', err);
+				});
+			} else if (element.webkitRequestFullscreen) {
+				element.webkitRequestFullscreen().catch(err => {
+					console.log('Webkit fullscreen no disponible:', err);
+				});
+			} else if (element.mozRequestFullScreen) {
+				element.mozRequestFullScreen().catch(err => {
+					console.log('Mozilla fullscreen no disponible:', err);
+				});
+			} else if (element.msRequestFullscreen) {
+				element.msRequestFullscreen().catch(err => {
+					console.log('MS fullscreen no disponible:', err);
+				});
+			}
+		}
+
+		// Detectar móviles y aplicar técnicas de ocultamiento
+		function setupMobileOptimizations() {
+			const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+			if (isMobile) {
+				console.log('📱 Dispositivo móvil detectado - Aplicando optimizaciones');
+
+				// Ocultar barra de direcciones al cargar
+				hideAddressBar();
+
+				// Reintentar después de la carga completa
+				window.addEventListener('load', () => {
+					setTimeout(hideAddressBar, 100);
+					setTimeout(hideAddressBar, 500);
+					setTimeout(hideAddressBar, 1000);
+				});
+
+				// Ocultar en orientación
+				window.addEventListener('orientationchange', () => {
+					setTimeout(hideAddressBar, 100);
+				});
+
+				// Intentar pantalla completa en el primer toque (solo funciona con interacción del usuario)
+				document.addEventListener('touchstart', function onFirstTouch() {
+					enterFullscreen();
+					document.removeEventListener('touchstart', onFirstTouch);
+				}, { once: true });
+
+				// También en click para desktop
+				document.addEventListener('click', function onFirstClick() {
+					enterFullscreen();
+					document.removeEventListener('click', onFirstClick);
+				}, { once: true });
+			}
+		}
+
+		// Inicializar optimizaciones móviles
+		setupMobileOptimizations();
 
 		init();
 	</script>

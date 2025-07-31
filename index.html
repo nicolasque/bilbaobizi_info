@@ -260,8 +260,9 @@
 		const navRight = document.getElementById('nav-right');
 		const loadingMessage = document.getElementById('loading-message');
 
-		let shuffledIndices = [];
-		let currentIndex = -1;
+		// Sistema de ciclos de reproducción sin repetición
+		let currentCycle = [];
+		let currentCycleIndex = -1;
 		let autoplayTimer;
 		let allImagesLoaded = false;
 
@@ -463,7 +464,7 @@
 			preloadNext();
 		}
 
-		function showImage(index) {
+		function showImage(baseFileName) {
 			const oldImages = container.querySelectorAll('.carousel-image');
 			oldImages.forEach(img => {
 				img.classList.remove('visible');
@@ -472,7 +473,6 @@
 				}, 2000);
 			});
 
-			const baseFileName = imageFiles[index];
 			const preloadedData = preloadedImages.get(baseFileName);
 
 			if (!preloadedData) {
@@ -523,20 +523,22 @@
 			img.classList.add('visible');
 
 			// 🚀 NUEVA FUNCIONALIDAD: Precargar siguientes imágenes mientras se muestra la actual
-			preloadNextImages(index);
+			preloadNextImages();
 		}
 
 		// Nueva función para precargar las siguientes imágenes
-		function preloadNextImages(currentImageIndex) {
+		function preloadNextImages() {
+			// Si no hay ciclo, no hay nada que precargar
+			if (currentCycle.length === 0) return;
+
 			// Encontrar las siguientes 3-5 imágenes que no están cargadas
 			const imagesToPreload = [];
-			const totalImages = imageFiles.length;
 
 			for (let i = 1; i <= 5; i++) {
-				const nextIndex = (currentImageIndex + i) % totalImages;
-				const fileName = imageFiles[nextIndex];
+				const nextIndex = (currentCycleIndex + i) % currentCycle.length;
+				const fileName = currentCycle[nextIndex];
 
-				if (!preloadedImages.has(fileName) && imageExtensions[fileName] !== 'unavailable') {
+				if (fileName && !preloadedImages.has(fileName) && imageExtensions[fileName] !== 'unavailable') {
 					imagesToPreload.push(fileName);
 				}
 			}
@@ -559,64 +561,52 @@
 		function nextImage() {
 			if (!allImagesLoaded) return;
 
-			// Filtrar solo imágenes disponibles para evitar bucles infinitos
-			const availableIndices = shuffledIndices.filter(index =>
-				preloadedImages.has(imageFiles[index])
-			);
+			// Si el ciclo ha terminado, crear uno nuevo
+			if (currentCycleIndex >= currentCycle.length - 1) {
+				const availableImageFiles = imageFiles.filter(file => preloadedImages.has(file));
+				console.log(`🏁 Ciclo completado. Creando nuevo ciclo con ${availableImageFiles.length} fotos.`);
+				currentCycle = [...availableImageFiles];
+				shuffleArray(currentCycle);
+				currentCycleIndex = -1;
+			}
 
-			if (availableIndices.length === 0) {
+			if (currentCycle.length === 0) {
 				loadingMessage.textContent = "No hay imágenes disponibles para mostrar.";
 				loadingMessage.style.display = 'block';
 				return;
 			}
 
-			// Buscar el índice actual en la lista de disponibles
-			let currentPositionInAvailable = availableIndices.indexOf(currentIndex);
+			currentCycleIndex++;
+			const nextImageName = currentCycle[currentCycleIndex];
 
-			// Avanzar a la siguiente imagen disponible
-			currentPositionInAvailable++;
-			if (currentPositionInAvailable >= availableIndices.length) {
-				currentPositionInAvailable = 0;
-				// Reorganizar para nueva ronda
-				shuffleArray(shuffledIndices);
-				const newAvailableIndices = shuffledIndices.filter(index =>
-					preloadedImages.has(imageFiles[index])
-				);
-				currentIndex = newAvailableIndices[0];
-			} else {
-				currentIndex = availableIndices[currentPositionInAvailable];
-			}
-
-			showImage(currentIndex);
+			console.log(`📸 Mostrando: ${nextImageName} (${currentCycleIndex + 1}/${currentCycle.length})`);
+			showImage(nextImageName);
 			resetAutoplay();
 		}
 
 		function prevImage() {
 			if (!allImagesLoaded) return;
 
-			// Filtrar solo imágenes disponibles para evitar bucles infinitos
-			const availableIndices = shuffledIndices.filter(index =>
-				preloadedImages.has(imageFiles[index])
-			);
+			// Si el ciclo está al principio, ir al final
+			if (currentCycleIndex <= 0) {
+				const availableImageFiles = imageFiles.filter(file => preloadedImages.has(file));
+				console.log(`🏁 Ciclo reiniciado. Creando nuevo ciclo con ${availableImageFiles.length} fotos.`);
+				currentCycle = [...availableImageFiles];
+				shuffleArray(currentCycle);
+				currentCycleIndex = currentCycle.length;
+			}
 
-			if (availableIndices.length === 0) {
+			if (currentCycle.length === 0) {
 				loadingMessage.textContent = "No hay imágenes disponibles para mostrar.";
 				loadingMessage.style.display = 'block';
 				return;
 			}
 
-			// Buscar el índice actual en la lista de disponibles
-			let currentPositionInAvailable = availableIndices.indexOf(currentIndex);
+			currentCycleIndex--;
+			const prevImageName = currentCycle[currentCycleIndex];
 
-			// Retroceder a la imagen anterior disponible
-			currentPositionInAvailable--;
-			if (currentPositionInAvailable < 0) {
-				currentPositionInAvailable = availableIndices.length - 1;
-			}
-
-			currentIndex = availableIndices[currentPositionInAvailable];
-
-			showImage(currentIndex);
+			console.log(`📸 Mostrando: ${prevImageName} (${currentCycleIndex + 1}/${currentCycle.length})`);
+			showImage(prevImageName);
 			resetAutoplay();
 		}
 
@@ -631,22 +621,17 @@
 		}
 
 		function startCarousel() {
-			const availableImages = imageFiles.filter(file => preloadedImages.has(file));
-			if (availableImages.length === 0) {
+			const availableImageFiles = imageFiles.filter(file => preloadedImages.has(file));
+			if (availableImageFiles.length === 0) {
 				loadingMessage.textContent = "No hay imágenes disponibles.";
 				loadingMessage.style.display = 'block';
 				return;
 			}
 
-			// Crear índices solo para las imágenes disponibles
-			shuffledIndices = [];
-			imageFiles.forEach((fileName, index) => {
-				if (preloadedImages.has(fileName)) {
-					shuffledIndices.push(index);
-				}
-			});
-
-			shuffleArray(shuffledIndices);
+			// Crear el primer ciclo de reproducción
+			currentCycle = [...availableImageFiles];
+			shuffleArray(currentCycle);
+			console.log(`🚀 Iniciando primer ciclo con ${currentCycle.length} fotos.`);
 
 			navLeft.addEventListener('click', prevImage);
 			navRight.addEventListener('click', nextImage);

@@ -170,11 +170,11 @@
 
 	<script>
 		// --- CONFIGURACIÓN ---
-		const NUMERO_TOTAL_DE_FOTOS = 68; // <-- Cambia este número
+		const NUMERO_TOTAL_DE_FOTOS = 68;
 		const EXTENSION_POR_DEFECTO = 'jpg';
 		const PHOTO_INTERVAL_SECONDS = 12;
 		const IMAGE_FOLDER = 'imagenes/';
-		const MAX_BLACK_BARS_PERCENT = 0.25; // Límite del 15% para las bandas negras
+		const MAX_BLACK_BARS_PERCENT = 0.25;
 
 		const ENTRY_ANIMATIONS = [
 			'anim-fade-in',
@@ -185,8 +185,13 @@
 
 		// --- LÓGICA DEL CARRUSEL ---
 		const imageFiles = [];
+		const preloadedImages = new Map(); // Almacén de imágenes precargadas
+		const imageExtensions = {};
+		let loadedImagesCount = 0;
+
+		// Generar lista de archivos base sin extensión
 		for (let i = 1; i <= NUMERO_TOTAL_DE_FOTOS; i++) {
-			imageFiles.push(`foto${i}.${EXTENSION_POR_DEFECTO}`);
+			imageFiles.push(`foto${i}`);
 		}
 
 		const container = document.getElementById('carousel-container');
@@ -197,6 +202,7 @@
 		let shuffledIndices = [];
 		let currentIndex = -1;
 		let autoplayTimer;
+		let allImagesLoaded = false;
 
 		function shuffleArray(array) {
 			for (let i = array.length - 1; i > 0; i--) {
@@ -205,109 +211,211 @@
 			}
 		}
 
+		function updateLoadingProgress() {
+			const availableImages = imageFiles.filter(file => preloadedImages.has(file)).length;
+			const totalAttempted = Object.keys(imageExtensions).length;
+
+			if (availableImages > 0) {
+				loadingMessage.textContent = `Cargadas ${availableImages} de ${NUMERO_TOTAL_DE_FOTOS} fotos...`;
+			} else if (totalAttempted > 0) {
+				loadingMessage.textContent = `Buscando fotos... ${totalAttempted}/${NUMERO_TOTAL_DE_FOTOS}`;
+			}
+		}
+
+		function preloadImage(baseFileName) {
+			return new Promise((resolve) => {
+				const img = new Image();
+				let triedExtensions = '';
+
+				function tryExtension(extensions, index = 0) {
+					if (index >= extensions.length) {
+						// No se pudo cargar con ninguna extensión
+						imageExtensions[baseFileName] = 'unavailable';
+						console.warn(`No se pudo cargar: ${baseFileName}`);
+						resolve(false);
+						return;
+					}
+
+					const ext = extensions[index];
+					if (triedExtensions.includes(ext)) {
+						tryExtension(extensions, index + 1);
+						return;
+					}
+
+					triedExtensions += ext + ',';
+					img.src = IMAGE_FOLDER + baseFileName + '.' + ext;
+
+					img.onload = function () {
+						// Imagen cargada exitosamente
+						imageExtensions[baseFileName] = ext;
+						preloadedImages.set(baseFileName, {
+							element: this,
+							width: this.naturalWidth,
+							height: this.naturalHeight,
+							extension: ext
+						});
+						console.log(`✓ Cargada: ${baseFileName}.${ext}`);
+						resolve(true);
+					};
+
+					img.onerror = function () {
+						// Probar siguiente extensión
+						tryExtension(extensions, index + 1);
+					};
+				}
+
+				// Si ya conocemos la extensión, usarla directamente
+				if (imageExtensions[baseFileName] && imageExtensions[baseFileName] !== 'unavailable') {
+					img.src = IMAGE_FOLDER + baseFileName + '.' + imageExtensions[baseFileName];
+					img.onload = function () {
+						preloadedImages.set(baseFileName, {
+							element: this,
+							width: this.naturalWidth,
+							height: this.naturalHeight,
+							extension: imageExtensions[baseFileName]
+						});
+						resolve(true);
+					};
+					img.onerror = () => resolve(false);
+				} else {
+					// Probar extensiones en orden de probabilidad
+					tryExtension(['jpg', 'jpeg', 'gif', 'png', 'webp']);
+				}
+			});
+		}
+
+		async function preloadAllImages() {
+			loadingMessage.textContent = "Iniciando carga de fotos...";
+
+			const preloadPromises = imageFiles.map(async (fileName, index) => {
+				const result = await preloadImage(fileName);
+				updateLoadingProgress();
+				return result;
+			});
+
+			await Promise.all(preloadPromises);
+
+			const availableImages = imageFiles.filter(file => preloadedImages.has(file));
+
+			if (availableImages.length === 0) {
+				loadingMessage.textContent = "No se encontraron imágenes para mostrar.";
+				return;
+			}
+
+			console.log(`Precarga completada: ${availableImages.length}/${NUMERO_TOTAL_DE_FOTOS} imágenes disponibles`);
+			loadingMessage.textContent = `¡Listo! ${availableImages.length} fotos cargadas.`;
+
+			setTimeout(() => {
+				allImagesLoaded = true;
+				loadingMessage.style.display = 'none';
+				startCarousel();
+			}, 1000);
+		}
+
 		function showImage(index) {
 			const oldImages = container.querySelectorAll('.carousel-image');
 			oldImages.forEach(img => {
 				img.classList.remove('visible');
-				setTimeout(() => { if (container.contains(img)) container.removeChild(img); }, 2000);
+				setTimeout(() => {
+					if (container.contains(img)) container.removeChild(img);
+				}, 2000);
 			});
 
-			if (loadingMessage) loadingMessage.style.display = 'none';
-
-			const img = document.createElement('img');
 			const baseFileName = imageFiles[index];
-			img.src = IMAGE_FOLDER + baseFileName;
+			const preloadedData = preloadedImages.get(baseFileName);
 
-			img.onload = function () {
-				const screenW = window.innerWidth;
-				const screenH = window.innerHeight;
-				const screenRatio = screenW / screenH;
-				const imageRatio = this.naturalWidth / this.naturalHeight;
+			if (!preloadedData) {
+				console.error(`Imagen no precargada: ${baseFileName}`);
+				nextImage();
+				return;
+			}
 
-				// Calcula el tamaño de las bandas negras si usáramos 'contain'
-				let blackBarSize = 0;
-				if (imageRatio > screenRatio) { // Bandas arriba y abajo
-					const projectedHeight = screenW / imageRatio;
-					blackBarSize = (screenH - projectedHeight) / screenH;
-				} else { // Bandas a los lados
-					const projectedWidth = screenH * imageRatio;
-					blackBarSize = (screenW - projectedWidth) / screenW;
-				}
-
-				// Si las bandas negras son aceptables, usa 'contain'
-				if (blackBarSize <= MAX_BLACK_BARS_PERCENT) {
-					this.classList.add('fit-contain');
-				}
-				// Si no, se queda con 'cover' por defecto
-
-				// Aplica animaciones y haz visible la imagen
-				const randomAnimation = ENTRY_ANIMATIONS[Math.floor(Math.random() * ENTRY_ANIMATIONS.length)];
-				this.classList.add(randomAnimation);
-
-				if (Math.random() > 0.5 && !this.classList.contains('fit-contain')) {
-					this.classList.add('anim-ken-burns');
-				}
-
-				void this.offsetWidth;
-				this.classList.add('visible');
-			};
-
-			img.onerror = function () {
-				// Evitar bucle infinito: solo intentar una vez con cada extensión
-				if (!this.dataset.triedExtensions) {
-					this.dataset.triedExtensions = '';
-				}
-
-				const extensionsToTry = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
-				let currentExt = baseFileName.split('.').pop();
-
-				// Marcar la extensión actual como probada
-				if (!this.dataset.triedExtensions.includes(currentExt)) {
-					this.dataset.triedExtensions += currentExt + ',';
-				}
-
-				// Buscar la siguiente extensión no probada
-				let nextExt = null;
-				for (let ext of extensionsToTry) {
-					if (!this.dataset.triedExtensions.includes(ext)) {
-						nextExt = ext;
-						break;
-					}
-				}
-
-				if (nextExt) {
-					this.src = IMAGE_FOLDER + baseFileName.replace(/\.[^.]+$/, '.' + nextExt);
-				} else {
-					// Si todas las extensiones fallaron, mostrar la siguiente imagen
-					console.warn(`No se pudo cargar la imagen: ${baseFileName}`);
-					setTimeout(nextImage, 1000); // Esperar 1 segundo antes de pasar a la siguiente
-				}
-			};
-
+			// Crear nueva instancia de la imagen precargada
+			const img = new Image();
+			img.src = preloadedData.element.src;
 			img.classList.add('carousel-image');
+
+			// Calcular si usar contain o cover
+			const screenW = window.innerWidth;
+			const screenH = window.innerHeight;
+			const screenRatio = screenW / screenH;
+			const imageRatio = preloadedData.width / preloadedData.height;
+
+			let blackBarSize = 0;
+			if (imageRatio > screenRatio) {
+				const projectedHeight = screenW / imageRatio;
+				blackBarSize = (screenH - projectedHeight) / screenH;
+			} else {
+				const projectedWidth = screenH * imageRatio;
+				blackBarSize = (screenW - projectedWidth) / screenW;
+			}
+
+			if (blackBarSize <= MAX_BLACK_BARS_PERCENT) {
+				img.classList.add('fit-contain');
+			}
+
+			// Aplicar animaciones
+			const randomAnimation = ENTRY_ANIMATIONS[Math.floor(Math.random() * ENTRY_ANIMATIONS.length)];
+			img.classList.add(randomAnimation);
+
+			if (Math.random() > 0.5 && !img.classList.contains('fit-contain')) {
+				img.classList.add('anim-ken-burns');
+			}
+
 			container.appendChild(img);
+
+			// Forzar reflow y hacer visible
+			void img.offsetWidth;
+			img.classList.add('visible');
 		}
 
 		function nextImage() {
-			currentIndex++;
-			if (currentIndex >= shuffledIndices.length) {
-				currentIndex = 0;
-				shuffleArray(shuffledIndices);
+			if (!allImagesLoaded) return;
+
+			let attempts = 0;
+			do {
+				currentIndex++;
+				if (currentIndex >= shuffledIndices.length) {
+					currentIndex = 0;
+					shuffleArray(shuffledIndices);
+				}
+				attempts++;
+			} while (!preloadedImages.has(imageFiles[shuffledIndices[currentIndex]]) && attempts < shuffledIndices.length);
+
+			if (attempts >= shuffledIndices.length) {
+				loadingMessage.textContent = "No hay imágenes disponibles para mostrar.";
+				loadingMessage.style.display = 'block';
+				return;
 			}
+
 			showImage(shuffledIndices[currentIndex]);
 			resetAutoplay();
 		}
 
 		function prevImage() {
-			currentIndex--;
-			if (currentIndex < 0) {
-				currentIndex = shuffledIndices.length - 1;
+			if (!allImagesLoaded) return;
+
+			let attempts = 0;
+			do {
+				currentIndex--;
+				if (currentIndex < 0) {
+					currentIndex = shuffledIndices.length - 1;
+				}
+				attempts++;
+			} while (!preloadedImages.has(imageFiles[shuffledIndices[currentIndex]]) && attempts < shuffledIndices.length);
+
+			if (attempts >= shuffledIndices.length) {
+				loadingMessage.textContent = "No hay imágenes disponibles para mostrar.";
+				loadingMessage.style.display = 'block';
+				return;
 			}
+
 			showImage(shuffledIndices[currentIndex]);
 			resetAutoplay();
 		}
 
 		function startAutoplay() {
+			if (!allImagesLoaded) return;
 			autoplayTimer = setInterval(nextImage, PHOTO_INTERVAL_SECONDS * 1000);
 		}
 
@@ -316,19 +424,38 @@
 			startAutoplay();
 		}
 
-		function init() {
-			if (!imageFiles || imageFiles.length === 0) {
-				loadingMessage.textContent = "El número total de fotos es cero.";
+		function startCarousel() {
+			const availableImages = imageFiles.filter(file => preloadedImages.has(file));
+			if (availableImages.length === 0) {
+				loadingMessage.textContent = "No hay imágenes disponibles.";
+				loadingMessage.style.display = 'block';
 				return;
 			}
 
-			shuffledIndices = Array.from(Array(imageFiles.length).keys());
+			// Crear índices solo para las imágenes disponibles
+			shuffledIndices = [];
+			imageFiles.forEach((fileName, index) => {
+				if (preloadedImages.has(fileName)) {
+					shuffledIndices.push(index);
+				}
+			});
+
 			shuffleArray(shuffledIndices);
 
 			navLeft.addEventListener('click', prevImage);
 			navRight.addEventListener('click', nextImage);
 
 			nextImage();
+		}
+
+		function init() {
+			if (!imageFiles || imageFiles.length === 0) {
+				loadingMessage.textContent = "El número total de fotos es cero.";
+				return;
+			}
+
+			// Iniciar precarga
+			preloadAllImages();
 		}
 
 		init();

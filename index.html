@@ -246,13 +246,11 @@
 		const preloadedImages = new Map(); // Almacén de imágenes precargadas
 		const imageExtensions = {};
 		let loadedImagesCount = 0;
-		let preloadQueue = []; // Cola de imágenes por cargar
-		let isPreloading = false; // Control de precarga en segundo plano
+		let autoplayTimer;
 
 		// Generar lista de archivos base sin extensión
 		for (let i = 1; i <= NUMERO_TOTAL_DE_FOTOS; i++) {
 			imageFiles.push(`foto${i}`);
-			preloadQueue.push(`foto${i}`); // Agregar a la cola de precarga
 		}
 
 		const container = document.getElementById('carousel-container');
@@ -263,7 +261,6 @@
 		// Sistema de ciclos de reproducción sin repetición
 		let currentCycle = [];
 		let currentCycleIndex = -1;
-		let autoplayTimer;
 		let allImagesLoaded = false;
 
 		function shuffleArray(array) {
@@ -386,90 +383,7 @@
 			});
 		}
 
-		async function preloadAllImages() {
-			loadingMessage.textContent = "Buscando primera imagen...";
 
-			// Intentar cargar las primeras 5 imágenes para empezar rápido
-			const initialBatch = Math.min(5, imageFiles.length);
-			const initialPromises = [];
-
-			for (let i = 0; i < initialBatch; i++) {
-				const fileName = imageFiles[i];
-				initialPromises.push(preloadImage(fileName));
-			}
-
-			// Esperar solo las primeras imágenes
-			await Promise.all(initialPromises);
-
-			const availableImages = imageFiles.filter(file => preloadedImages.has(file));
-
-			if (availableImages.length === 0) {
-				// Si no hay ninguna imagen en el primer lote, intentar con todas
-				loadingMessage.textContent = "Buscando más imágenes...";
-				const allPromises = imageFiles.map(async (fileName, index) => {
-					if (index >= initialBatch) { // Solo las que no se probaron ya
-						const result = await preloadImage(fileName);
-						updateLoadingProgress();
-						return result;
-					}
-					return false;
-				});
-
-				await Promise.all(allPromises);
-
-				const finalAvailable = imageFiles.filter(file => preloadedImages.has(file));
-				if (finalAvailable.length === 0) {
-					loadingMessage.textContent = "No se encontraron imágenes para mostrar.";
-					return;
-				}
-			}
-
-			console.log(`Iniciando carrusel con ${availableImages.length} imágenes iniciales`);
-			loadingMessage.textContent = `Iniciando con ${availableImages.length} fotos...`;
-
-			setTimeout(() => {
-				allImagesLoaded = true;
-				loadingMessage.style.display = 'none';
-				startCarousel();
-
-				// Iniciar precarga en segundo plano de las imágenes restantes
-				startBackgroundPreload();
-			}, 1000);
-		}
-
-		// Nueva función para precargar en segundo plano
-		function startBackgroundPreload() {
-			if (isPreloading) return;
-			isPreloading = true;
-
-			console.log("🚀 Iniciando precarga en segundo plano...");
-
-			async function preloadNext() {
-				while (preloadQueue.length > 0) {
-					const fileName = preloadQueue.shift();
-
-					// Solo precargar si no está ya cargada
-					if (!preloadedImages.has(fileName)) {
-						await preloadImage(fileName);
-						updateLoadingProgress();
-
-						// Pequeña pausa entre cargas para no sobrecargar
-						await new Promise(resolve => setTimeout(resolve, 100));
-					}
-				}
-
-				isPreloading = false;
-				console.log("✅ Precarga en segundo plano completada");
-				loadingMessage.textContent = `¡Todas las ${preloadedImages.size} fotos cargadas!`;
-				setTimeout(() => {
-					if (loadingMessage.style.display !== 'none') {
-						loadingMessage.style.display = 'none';
-					}
-				}, 2000);
-			}
-
-			preloadNext();
-		}
 
 		function showImage(baseFileName) {
 			const oldImages = container.querySelectorAll('.carousel-image');
@@ -565,20 +479,17 @@
 			});
 		}
 
-		function nextImage() {
-			if (!allImagesLoaded) return;
-
+		async function nextImage() {
 			// Si el ciclo ha terminado, crear uno nuevo
 			if (currentCycleIndex >= currentCycle.length - 1) {
-				const availableImageFiles = imageFiles.filter(file => preloadedImages.has(file));
-				console.log(`🏁 Ciclo completado. Creando nuevo ciclo con ${availableImageFiles.length} fotos.`);
-				currentCycle = [...availableImageFiles];
+				console.log(`🏁 Ciclo completado. Creando nuevo ciclo.`);
+				currentCycle = [...imageFiles];
 				shuffleArray(currentCycle);
 				currentCycleIndex = -1;
 			}
 
 			if (currentCycle.length === 0) {
-				loadingMessage.textContent = "No hay imágenes disponibles para mostrar.";
+				loadingMessage.textContent = "No hay imágenes configuradas para mostrar.";
 				loadingMessage.style.display = 'block';
 				return;
 			}
@@ -586,25 +497,34 @@
 			currentCycleIndex++;
 			const nextImageName = currentCycle[currentCycleIndex];
 
+			// Cargar la imagen si no está en caché
+			if (!preloadedImages.has(nextImageName)) {
+				console.log(`⏳ Cargando imagen: ${nextImageName}`);
+				const loaded = await preloadImage(nextImageName);
+				if (!loaded) {
+					// Si no se pudo cargar, intentar con la siguiente
+					console.warn(`❌ No se pudo cargar ${nextImageName}, saltando a la siguiente`);
+					nextImage();
+					return;
+				}
+			}
+
 			console.log(`📸 Mostrando: ${nextImageName} (${currentCycleIndex + 1}/${currentCycle.length})`);
 			showImage(nextImageName);
 			resetAutoplay();
 		}
 
-		function prevImage() {
-			if (!allImagesLoaded) return;
-
+		async function prevImage() {
 			// Si el ciclo está al principio, ir al final
 			if (currentCycleIndex <= 0) {
-				const availableImageFiles = imageFiles.filter(file => preloadedImages.has(file));
-				console.log(`🏁 Ciclo reiniciado. Creando nuevo ciclo con ${availableImageFiles.length} fotos.`);
-				currentCycle = [...availableImageFiles];
+				console.log(`🏁 Ciclo reiniciado. Creando nuevo ciclo.`);
+				currentCycle = [...imageFiles];
 				shuffleArray(currentCycle);
 				currentCycleIndex = currentCycle.length;
 			}
 
 			if (currentCycle.length === 0) {
-				loadingMessage.textContent = "No hay imágenes disponibles para mostrar.";
+				loadingMessage.textContent = "No hay imágenes configuradas para mostrar.";
 				loadingMessage.style.display = 'block';
 				return;
 			}
@@ -612,13 +532,24 @@
 			currentCycleIndex--;
 			const prevImageName = currentCycle[currentCycleIndex];
 
+			// Cargar la imagen si no está en caché
+			if (!preloadedImages.has(prevImageName)) {
+				console.log(`⏳ Cargando imagen: ${prevImageName}`);
+				const loaded = await preloadImage(prevImageName);
+				if (!loaded) {
+					// Si no se pudo cargar, intentar con la anterior
+					console.warn(`❌ No se pudo cargar ${prevImageName}, saltando a la anterior`);
+					prevImage();
+					return;
+				}
+			}
+
 			console.log(`📸 Mostrando: ${prevImageName} (${currentCycleIndex + 1}/${currentCycle.length})`);
 			showImage(prevImageName);
 			resetAutoplay();
 		}
 
 		function startAutoplay() {
-			if (!allImagesLoaded) return;
 			autoplayTimer = setInterval(nextImage, PHOTO_INTERVAL_SECONDS * 1000);
 		}
 
@@ -627,22 +558,17 @@
 			startAutoplay();
 		}
 
-		function startCarousel() {
-			const availableImageFiles = imageFiles.filter(file => preloadedImages.has(file));
-			if (availableImageFiles.length === 0) {
-				loadingMessage.textContent = "No hay imágenes disponibles.";
-				loadingMessage.style.display = 'block';
-				return;
-			}
-
-			// Crear el primer ciclo de reproducción
-			currentCycle = [...availableImageFiles];
+		async function startCarousel() {
+			// Crear el primer ciclo con todas las imágenes disponibles
+			currentCycle = [...imageFiles];
 			shuffleArray(currentCycle);
-			console.log(`🚀 Iniciando primer ciclo con ${currentCycle.length} fotos.`);
+			console.log(`🚀 Iniciando carrusel con ${currentCycle.length} fotos.`);
 
 			navLeft.addEventListener('click', prevImage);
 			navRight.addEventListener('click', nextImage);
 
+			// Ocultar mensaje de carga e iniciar
+			loadingMessage.style.display = 'none';
 			nextImage();
 		}
 
@@ -652,8 +578,8 @@
 				return;
 			}
 
-			// Iniciar precarga
-			preloadAllImages();
+			// Iniciar carrusel inmediatamente
+			startCarousel();
 		}
 
 		// Función para ocultar la barra de navegación en móviles

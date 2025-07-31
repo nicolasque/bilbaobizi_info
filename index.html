@@ -188,10 +188,13 @@
 		const preloadedImages = new Map(); // Almacén de imágenes precargadas
 		const imageExtensions = {};
 		let loadedImagesCount = 0;
+		let preloadQueue = []; // Cola de imágenes por cargar
+		let isPreloading = false; // Control de precarga en segundo plano
 
 		// Generar lista de archivos base sin extensión
 		for (let i = 1; i <= NUMERO_TOTAL_DE_FOTOS; i++) {
 			imageFiles.push(`foto${i}`);
+			preloadQueue.push(`foto${i}`); // Agregar a la cola de precarga
 		}
 
 		const container = document.getElementById('carousel-container');
@@ -213,12 +216,16 @@
 
 		function updateLoadingProgress() {
 			const availableImages = imageFiles.filter(file => preloadedImages.has(file)).length;
-			const totalAttempted = Object.keys(imageExtensions).length;
+			const totalChecked = Object.keys(imageExtensions).length;
 
 			if (availableImages > 0) {
-				loadingMessage.textContent = `Cargadas ${availableImages} de ${NUMERO_TOTAL_DE_FOTOS} fotos...`;
-			} else if (totalAttempted > 0) {
-				loadingMessage.textContent = `Buscando fotos... ${totalAttempted}/${NUMERO_TOTAL_DE_FOTOS}`;
+				if (availableImages === NUMERO_TOTAL_DE_FOTOS) {
+					loadingMessage.textContent = `¡Todas las ${availableImages} fotos cargadas en el dispositivo!`;
+				} else {
+					loadingMessage.textContent = `${availableImages} fotos disponibles - Cargando más en segundo plano...`;
+				}
+			} else if (totalChecked > 0) {
+				loadingMessage.textContent = `Buscando fotos... ${totalChecked}/${NUMERO_TOTAL_DE_FOTOS}`;
 			}
 		}
 
@@ -254,90 +261,154 @@
 					return;
 				}
 
-				// Probar extensiones por primera vez
-				const extensions = ['jpg', 'gif', 'jpeg', 'png', 'webp'];
-				const triedExtensions = new Set();
-				let currentIndex = 0;
+				// Probar extensiones en paralelo para detectar más rápido
+				const extensions = ['jpg', 'gif', 'jpeg', 'png', 'webp', 'bmp', 'svg'];
+				let resolved = false;
+				let loadedCount = 0;
 
-				function tryNextExtension() {
-					// Si ya probamos todas las extensiones, marcar como no disponible
-					if (currentIndex >= extensions.length) {
-						imageExtensions[baseFileName] = 'unavailable';
-						console.warn(`❌ No se pudo cargar con ninguna extensión: ${baseFileName}`);
-						resolve(false);
-						return;
-					}
+				console.log(`🔍 Detectando extensión para: ${baseFileName}`);
 
-					const ext = extensions[currentIndex];
-					currentIndex++;
-
-					// Evitar probar la misma extensión dos veces
-					if (triedExtensions.has(ext)) {
-						tryNextExtension();
-						return;
-					}
-
-					triedExtensions.add(ext);
+				extensions.forEach(ext => {
 					const img = new Image();
 
-					// Timeout para evitar requests que cuelguen indefinidamente
+					// Timeout de 8 segundos por extensión
 					const timeout = setTimeout(() => {
-						img.src = ''; // Cancelar request
-						console.warn(`⏰ Timeout cargando: ${baseFileName}.${ext}`);
-						tryNextExtension();
-					}, 10000); // 10 segundos máximo por imagen
+						if (!resolved) {
+							img.onload = null;
+							img.onerror = null;
+							img.src = '';
+							loadedCount++;
+
+							if (loadedCount >= extensions.length) {
+								// Todas las extensiones fallaron
+								imageExtensions[baseFileName] = 'unavailable';
+								console.warn(`❌ No se encontró extensión válida para: ${baseFileName}`);
+								if (!resolved) {
+									resolved = true;
+									resolve(false);
+								}
+							}
+						}
+					}, 8000);
 
 					img.onload = function () {
 						clearTimeout(timeout);
-						imageExtensions[baseFileName] = ext;
-						preloadedImages.set(baseFileName, {
-							element: this,
-							width: this.naturalWidth,
-							height: this.naturalHeight,
-							extension: ext
-						});
-						console.log(`✓ Cargada: ${baseFileName}.${ext}`);
-						resolve(true);
+						if (!resolved) {
+							resolved = true;
+							imageExtensions[baseFileName] = ext;
+							preloadedImages.set(baseFileName, {
+								element: this,
+								width: this.naturalWidth,
+								height: this.naturalHeight,
+								extension: ext
+							});
+							console.log(`✅ Detectada y cargada: ${baseFileName}.${ext}`);
+							resolve(true);
+						}
 					};
 
 					img.onerror = function () {
 						clearTimeout(timeout);
-						tryNextExtension();
+						loadedCount++;
+
+						if (loadedCount >= extensions.length && !resolved) {
+							// Todas las extensiones fallaron
+							imageExtensions[baseFileName] = 'unavailable';
+							console.warn(`❌ No se encontró extensión válida para: ${baseFileName}`);
+							resolved = true;
+							resolve(false);
+						}
 					};
 
+					// Establecer la fuente para iniciar la carga
 					img.src = IMAGE_FOLDER + baseFileName + '.' + ext;
-				}
-
-				tryNextExtension();
+				});
 			});
 		}
 
 		async function preloadAllImages() {
-			loadingMessage.textContent = "Iniciando carga de fotos...";
+			loadingMessage.textContent = "Buscando primera imagen...";
 
-			const preloadPromises = imageFiles.map(async (fileName, index) => {
-				const result = await preloadImage(fileName);
-				updateLoadingProgress();
-				return result;
-			});
+			// Intentar cargar las primeras 5 imágenes para empezar rápido
+			const initialBatch = Math.min(5, imageFiles.length);
+			const initialPromises = [];
 
-			await Promise.all(preloadPromises);
+			for (let i = 0; i < initialBatch; i++) {
+				const fileName = imageFiles[i];
+				initialPromises.push(preloadImage(fileName));
+			}
+
+			// Esperar solo las primeras imágenes
+			await Promise.all(initialPromises);
 
 			const availableImages = imageFiles.filter(file => preloadedImages.has(file));
 
 			if (availableImages.length === 0) {
-				loadingMessage.textContent = "No se encontraron imágenes para mostrar.";
-				return;
+				// Si no hay ninguna imagen en el primer lote, intentar con todas
+				loadingMessage.textContent = "Buscando más imágenes...";
+				const allPromises = imageFiles.map(async (fileName, index) => {
+					if (index >= initialBatch) { // Solo las que no se probaron ya
+						const result = await preloadImage(fileName);
+						updateLoadingProgress();
+						return result;
+					}
+					return false;
+				});
+
+				await Promise.all(allPromises);
+
+				const finalAvailable = imageFiles.filter(file => preloadedImages.has(file));
+				if (finalAvailable.length === 0) {
+					loadingMessage.textContent = "No se encontraron imágenes para mostrar.";
+					return;
+				}
 			}
 
-			console.log(`Precarga completada: ${availableImages.length}/${NUMERO_TOTAL_DE_FOTOS} imágenes disponibles`);
-			loadingMessage.textContent = `¡Listo! ${availableImages.length} fotos cargadas.`;
+			console.log(`Iniciando carrusel con ${availableImages.length} imágenes iniciales`);
+			loadingMessage.textContent = `Iniciando con ${availableImages.length} fotos...`;
 
 			setTimeout(() => {
 				allImagesLoaded = true;
 				loadingMessage.style.display = 'none';
 				startCarousel();
+
+				// Iniciar precarga en segundo plano de las imágenes restantes
+				startBackgroundPreload();
 			}, 1000);
+		}
+
+		// Nueva función para precargar en segundo plano
+		function startBackgroundPreload() {
+			if (isPreloading) return;
+			isPreloading = true;
+
+			console.log("🚀 Iniciando precarga en segundo plano...");
+
+			async function preloadNext() {
+				while (preloadQueue.length > 0) {
+					const fileName = preloadQueue.shift();
+
+					// Solo precargar si no está ya cargada
+					if (!preloadedImages.has(fileName)) {
+						await preloadImage(fileName);
+						updateLoadingProgress();
+
+						// Pequeña pausa entre cargas para no sobrecargar
+						await new Promise(resolve => setTimeout(resolve, 100));
+					}
+				}
+
+				isPreloading = false;
+				console.log("✅ Precarga en segundo plano completada");
+				loadingMessage.textContent = `¡Todas las ${preloadedImages.size} fotos cargadas!`;
+				setTimeout(() => {
+					if (loadingMessage.style.display !== 'none') {
+						loadingMessage.style.display = 'none';
+					}
+				}, 2000);
+			}
+
+			preloadNext();
 		}
 
 		function showImage(index) {
@@ -398,6 +469,39 @@
 			// Forzar reflow y hacer visible
 			void img.offsetWidth;
 			img.classList.add('visible');
+
+			// 🚀 NUEVA FUNCIONALIDAD: Precargar siguientes imágenes mientras se muestra la actual
+			preloadNextImages(index);
+		}
+
+		// Nueva función para precargar las siguientes imágenes
+		function preloadNextImages(currentImageIndex) {
+			// Encontrar las siguientes 3-5 imágenes que no están cargadas
+			const imagesToPreload = [];
+			const totalImages = imageFiles.length;
+
+			for (let i = 1; i <= 5; i++) {
+				const nextIndex = (currentImageIndex + i) % totalImages;
+				const fileName = imageFiles[nextIndex];
+
+				if (!preloadedImages.has(fileName) && imageExtensions[fileName] !== 'unavailable') {
+					imagesToPreload.push(fileName);
+				}
+			}
+
+			// Precargar en segundo plano sin bloquear la UI
+			imagesToPreload.forEach(async (fileName, index) => {
+				// Esperar un poco entre cada imagen para no sobrecargar
+				setTimeout(async () => {
+					if (!preloadedImages.has(fileName)) {
+						const loaded = await preloadImage(fileName);
+						if (loaded) {
+							console.log(`🔄 Precargada en segundo plano: ${fileName}`);
+							updateLoadingProgress();
+						}
+					}
+				}, index * 500); // 500ms entre cada imagen
+			});
 		}
 
 		function nextImage() {
@@ -415,7 +519,7 @@
 			}
 
 			// Buscar el índice actual en la lista de disponibles
-			let currentPositionInAvailable = availableIndices.indexOf(shuffledIndices[currentIndex]);
+			let currentPositionInAvailable = availableIndices.indexOf(currentIndex);
 
 			// Avanzar a la siguiente imagen disponible
 			currentPositionInAvailable++;
@@ -450,7 +554,7 @@
 			}
 
 			// Buscar el índice actual en la lista de disponibles
-			let currentPositionInAvailable = availableIndices.indexOf(shuffledIndices[currentIndex]);
+			let currentPositionInAvailable = availableIndices.indexOf(currentIndex);
 
 			// Retroceder a la imagen anterior disponible
 			currentPositionInAvailable--;

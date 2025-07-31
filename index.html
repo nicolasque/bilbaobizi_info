@@ -224,29 +224,71 @@
 
 		function preloadImage(baseFileName) {
 			return new Promise((resolve) => {
-				const img = new Image();
-				let triedExtensions = '';
+				// Si ya sabemos que esta imagen no está disponible, no intentar cargarla
+				if (imageExtensions[baseFileName] === 'unavailable') {
+					resolve(false);
+					return;
+				}
 
-				function tryExtension(extensions, index = 0) {
-					if (index >= extensions.length) {
-						// No se pudo cargar con ninguna extensión
+				// Si ya conocemos la extensión válida, usarla directamente
+				if (imageExtensions[baseFileName] && imageExtensions[baseFileName] !== 'unavailable') {
+					const img = new Image();
+					img.src = IMAGE_FOLDER + baseFileName + '.' + imageExtensions[baseFileName];
+
+					img.onload = function () {
+						preloadedImages.set(baseFileName, {
+							element: this,
+							width: this.naturalWidth,
+							height: this.naturalHeight,
+							extension: imageExtensions[baseFileName]
+						});
+						resolve(true);
+					};
+
+					img.onerror = function () {
+						// Si falla una extensión que previamente funcionaba, marcar como no disponible
 						imageExtensions[baseFileName] = 'unavailable';
-						console.warn(`No se pudo cargar: ${baseFileName}`);
+						console.warn(`❌ Falló imagen previamente válida: ${baseFileName}`);
+						resolve(false);
+					};
+					return;
+				}
+
+				// Probar extensiones por primera vez
+				const extensions = ['jpg', 'jpeg', 'gif', 'png', 'webp'];
+				const triedExtensions = new Set();
+				let currentIndex = 0;
+
+				function tryNextExtension() {
+					// Si ya probamos todas las extensiones, marcar como no disponible
+					if (currentIndex >= extensions.length) {
+						imageExtensions[baseFileName] = 'unavailable';
+						console.warn(`❌ No se pudo cargar con ninguna extensión: ${baseFileName}`);
 						resolve(false);
 						return;
 					}
 
-					const ext = extensions[index];
-					if (triedExtensions.includes(ext)) {
-						tryExtension(extensions, index + 1);
+					const ext = extensions[currentIndex];
+					currentIndex++;
+
+					// Evitar probar la misma extensión dos veces
+					if (triedExtensions.has(ext)) {
+						tryNextExtension();
 						return;
 					}
 
-					triedExtensions += ext + ',';
-					img.src = IMAGE_FOLDER + baseFileName + '.' + ext;
+					triedExtensions.add(ext);
+					const img = new Image();
+
+					// Timeout para evitar requests que cuelguen indefinidamente
+					const timeout = setTimeout(() => {
+						img.src = ''; // Cancelar request
+						console.warn(`⏰ Timeout cargando: ${baseFileName}.${ext}`);
+						tryNextExtension();
+					}, 10000); // 10 segundos máximo por imagen
 
 					img.onload = function () {
-						// Imagen cargada exitosamente
+						clearTimeout(timeout);
 						imageExtensions[baseFileName] = ext;
 						preloadedImages.set(baseFileName, {
 							element: this,
@@ -259,28 +301,14 @@
 					};
 
 					img.onerror = function () {
-						// Probar siguiente extensión
-						tryExtension(extensions, index + 1);
+						clearTimeout(timeout);
+						tryNextExtension();
 					};
+
+					img.src = IMAGE_FOLDER + baseFileName + '.' + ext;
 				}
 
-				// Si ya conocemos la extensión, usarla directamente
-				if (imageExtensions[baseFileName] && imageExtensions[baseFileName] !== 'unavailable') {
-					img.src = IMAGE_FOLDER + baseFileName + '.' + imageExtensions[baseFileName];
-					img.onload = function () {
-						preloadedImages.set(baseFileName, {
-							element: this,
-							width: this.naturalWidth,
-							height: this.naturalHeight,
-							extension: imageExtensions[baseFileName]
-						});
-						resolve(true);
-					};
-					img.onerror = () => resolve(false);
-				} else {
-					// Probar extensiones en orden de probabilidad
-					tryExtension(['jpg', 'jpeg', 'gif', 'png', 'webp']);
-				}
+				tryNextExtension();
 			});
 		}
 
@@ -325,8 +353,11 @@
 			const preloadedData = preloadedImages.get(baseFileName);
 
 			if (!preloadedData) {
-				console.error(`Imagen no precargada: ${baseFileName}`);
-				nextImage();
+				console.error(`Imagen no precargada: ${baseFileName} - Saltando a la siguiente`);
+				// Evitar bucle infinito: saltar directamente a la siguiente imagen
+				setTimeout(() => {
+					nextImage();
+				}, 100);
 				return;
 			}
 
@@ -372,45 +403,64 @@
 		function nextImage() {
 			if (!allImagesLoaded) return;
 
-			let attempts = 0;
-			do {
-				currentIndex++;
-				if (currentIndex >= shuffledIndices.length) {
-					currentIndex = 0;
-					shuffleArray(shuffledIndices);
-				}
-				attempts++;
-			} while (!preloadedImages.has(imageFiles[shuffledIndices[currentIndex]]) && attempts < shuffledIndices.length);
+			// Filtrar solo imágenes disponibles para evitar bucles infinitos
+			const availableIndices = shuffledIndices.filter(index =>
+				preloadedImages.has(imageFiles[index])
+			);
 
-			if (attempts >= shuffledIndices.length) {
+			if (availableIndices.length === 0) {
 				loadingMessage.textContent = "No hay imágenes disponibles para mostrar.";
 				loadingMessage.style.display = 'block';
 				return;
 			}
 
-			showImage(shuffledIndices[currentIndex]);
+			// Buscar el índice actual en la lista de disponibles
+			let currentPositionInAvailable = availableIndices.indexOf(shuffledIndices[currentIndex]);
+
+			// Avanzar a la siguiente imagen disponible
+			currentPositionInAvailable++;
+			if (currentPositionInAvailable >= availableIndices.length) {
+				currentPositionInAvailable = 0;
+				// Reorganizar para nueva ronda
+				shuffleArray(shuffledIndices);
+				const newAvailableIndices = shuffledIndices.filter(index =>
+					preloadedImages.has(imageFiles[index])
+				);
+				currentIndex = newAvailableIndices[0];
+			} else {
+				currentIndex = availableIndices[currentPositionInAvailable];
+			}
+
+			showImage(currentIndex);
 			resetAutoplay();
 		}
 
 		function prevImage() {
 			if (!allImagesLoaded) return;
 
-			let attempts = 0;
-			do {
-				currentIndex--;
-				if (currentIndex < 0) {
-					currentIndex = shuffledIndices.length - 1;
-				}
-				attempts++;
-			} while (!preloadedImages.has(imageFiles[shuffledIndices[currentIndex]]) && attempts < shuffledIndices.length);
+			// Filtrar solo imágenes disponibles para evitar bucles infinitos
+			const availableIndices = shuffledIndices.filter(index =>
+				preloadedImages.has(imageFiles[index])
+			);
 
-			if (attempts >= shuffledIndices.length) {
+			if (availableIndices.length === 0) {
 				loadingMessage.textContent = "No hay imágenes disponibles para mostrar.";
 				loadingMessage.style.display = 'block';
 				return;
 			}
 
-			showImage(shuffledIndices[currentIndex]);
+			// Buscar el índice actual en la lista de disponibles
+			let currentPositionInAvailable = availableIndices.indexOf(shuffledIndices[currentIndex]);
+
+			// Retroceder a la imagen anterior disponible
+			currentPositionInAvailable--;
+			if (currentPositionInAvailable < 0) {
+				currentPositionInAvailable = availableIndices.length - 1;
+			}
+
+			currentIndex = availableIndices[currentPositionInAvailable];
+
+			showImage(currentIndex);
 			resetAutoplay();
 		}
 

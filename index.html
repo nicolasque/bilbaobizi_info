@@ -1,237 +1,338 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Marco de Fotos Digital</title>
-    <style>
-        /* --- ESTILOS GENERALES Y DEL CONTENEDOR --- */
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden; /* Evita barras de scroll */
-            background-color: #000;
-            font-family: sans-serif;
-            color: white;
-        }
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+	<title>Marco de Fotos Digital</title>
+	<style>
+		/* --- ESTILOS GENERALES Y DEL CONTENEDOR --- */
+		body,
+		html {
+			margin: 0;
+			padding: 0;
+			width: 100%;
+			height: 100%;
+			overflow: hidden;
+			/* Evita barras de scroll */
+			background-color: #000;
+			font-family: sans-serif;
+			color: white;
+		}
 
-        #carousel-container {
-            position: relative;
-            width: 100vw; /* 100% del ancho de la ventana */
-            height: 100vh; /* 100% del alto de la ventana */
-            background-color: #000;
-        }
+		#carousel-container {
+			position: relative;
+			width: 100vw;
+			/* 100% del ancho de la ventana */
+			height: 100vh;
+			/* 100% del alto de la ventana */
+			background-color: #000;
+		}
 
-        /* --- ESTILOS DE LAS IMÁGENES --- */
-        .carousel-image {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            /* Por defecto, las imágenes rellenan la pantalla. JS decidirá si cambia a 'contain'. */
-            object-fit: cover; 
-            opacity: 0; /* Ocultas por defecto */
-            transition: opacity 1.5s ease-in-out; /* Transición suave para la opacidad */
-        }
-        
-        /* Clase que JS añadirá dinámicamente */
-        .fit-contain {
-            object-fit: contain;
-        }
+		/* --- ESTILOS DE LAS IMÁGENES --- */
+		.carousel-image {
+			position: absolute;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			/* Por defecto, las imágenes rellenan la pantalla. JS decidirá si cambia a 'contain'. */
+			object-fit: cover;
+			opacity: 0;
+			/* Ocultas por defecto */
+			transition: opacity 1.5s ease-in-out;
+			/* Transición suave para la opacidad */
+		}
 
-        .carousel-image.visible {
-            opacity: 1; /* Hace visible la imagen activa */
-            z-index: 2; /* Se asegura que la imagen activa esté por encima de la anterior */
-        }
+		/* Clase que JS añadirá dinámicamente */
+		.fit-contain {
+			object-fit: contain;
+		}
 
-        /* --- CLASES DE ANIMACIÓN DE ENTRADA --- */
-        .anim-fade-in { animation: fadeIn 1.5s ease-in-out; }
-        .anim-slide-from-right { animation: slideFromRight 1.2s cubic-bezier(0.250, 0.460, 0.450, 0.940); }
-        .anim-slide-from-left { animation: slideFromLeft 1.2s cubic-bezier(0.250, 0.460, 0.450, 0.940); }
-        .anim-zoom-in { animation: zoomIn 1.5s ease-out; }
-        .anim-ken-burns { animation: kenBurns 20s ease-in-out infinite alternate; }
+		.carousel-image.visible {
+			opacity: 1;
+			/* Hace visible la imagen activa */
+			z-index: 2;
+			/* Se asegura que la imagen activa esté por encima de la anterior */
+		}
 
-        /* --- DEFINICIÓN DE LAS ANIMACIONES (KEYFRAMES) --- */
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes slideFromRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
-        @keyframes slideFromLeft { from { transform: translateX(-100%); } to { transform: translateX(0); } }
-        @keyframes zoomIn { from { opacity: 0; transform: scale(1.1); } to { opacity: 1; transform: scale(1); } }
-        @keyframes kenBurns { from { transform: scale(1) translate(0, 0); } to { transform: scale(1.15) translate(2%, -1%); } }
+		/* --- CLASES DE ANIMACIÓN DE ENTRADA --- */
+		.anim-fade-in {
+			animation: fadeIn 1.5s ease-in-out;
+		}
 
-        /* --- ÁREAS DE NAVEGACIÓN (IZQUIERDA/DERECHA) --- */
-        .nav-area {
-            position: absolute;
-            top: 0;
-            height: 100%;
-            width: 45%;
-            z-index: 10;
-            cursor: pointer;
-            -webkit-tap-highlight-color: transparent;
-        }
+		.anim-slide-from-right {
+			animation: slideFromRight 1.2s cubic-bezier(0.250, 0.460, 0.450, 0.940);
+		}
 
-        #nav-left { left: 0; }
-        #nav-right { right: 0; }
-        
-        #loading-message {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 99;
-        }
-    </style>
+		.anim-slide-from-left {
+			animation: slideFromLeft 1.2s cubic-bezier(0.250, 0.460, 0.450, 0.940);
+		}
+
+		.anim-zoom-in {
+			animation: zoomIn 1.5s ease-out;
+		}
+
+		.anim-ken-burns {
+			animation: kenBurns 20s ease-in-out infinite alternate;
+		}
+
+		/* --- DEFINICIÓN DE LAS ANIMACIONES (KEYFRAMES) --- */
+		@keyframes fadeIn {
+			from {
+				opacity: 0;
+			}
+
+			to {
+				opacity: 1;
+			}
+		}
+
+		@keyframes slideFromRight {
+			from {
+				transform: translateX(100%);
+			}
+
+			to {
+				transform: translateX(0);
+			}
+		}
+
+		@keyframes slideFromLeft {
+			from {
+				transform: translateX(-100%);
+			}
+
+			to {
+				transform: translateX(0);
+			}
+		}
+
+		@keyframes zoomIn {
+			from {
+				opacity: 0;
+				transform: scale(1.1);
+			}
+
+			to {
+				opacity: 1;
+				transform: scale(1);
+			}
+		}
+
+		@keyframes kenBurns {
+			from {
+				transform: scale(1) translate(0, 0);
+			}
+
+			to {
+				transform: scale(1.15) translate(2%, -1%);
+			}
+		}
+
+		/* --- ÁREAS DE NAVEGACIÓN (IZQUIERDA/DERECHA) --- */
+		.nav-area {
+			position: absolute;
+			top: 0;
+			height: 100%;
+			width: 45%;
+			z-index: 10;
+			cursor: pointer;
+			-webkit-tap-highlight-color: transparent;
+		}
+
+		#nav-left {
+			left: 0;
+		}
+
+		#nav-right {
+			right: 0;
+		}
+
+		#loading-message {
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			z-index: 99;
+		}
+	</style>
 </head>
+
 <body>
 
-    <div id="carousel-container">
-        <div id="loading-message">Cargando fotos...</div>
-    </div>
-    
-    <div class="nav-area" id="nav-left"></div>
-    <div class="nav-area" id="nav-right"></div>
+	<div id="carousel-container">
+		<div id="loading-message">Cargando fotos...</div>
+	</div>
 
-    <script>
-        // --- CONFIGURACIÓN ---
-        const NUMERO_TOTAL_DE_FOTOS = 68; // <-- Cambia este número
-        const EXTENSION_POR_DEFECTO = 'jpg';
-        const PHOTO_INTERVAL_SECONDS = 12;
-        const IMAGE_FOLDER = 'imagenes/';
-        const MAX_BLACK_BARS_PERCENT = 0.25; // Límite del 15% para las bandas negras
+	<div class="nav-area" id="nav-left"></div>
+	<div class="nav-area" id="nav-right"></div>
 
-        const ENTRY_ANIMATIONS = [
-            'anim-fade-in', 
-            'anim-slide-from-right', 
-            'anim-slide-from-left', 
-            'anim-zoom-in'
-        ];
-        
-        // --- LÓGICA DEL CARRUSEL ---
-        const imageFiles = [];
-        for (let i = 1; i <= NUMERO_TOTAL_DE_FOTOS; i++) {
-            imageFiles.push(`foto${i}.${EXTENSION_POR_DEFECTO}`);
-        }
+	<script>
+		// --- CONFIGURACIÓN ---
+		const NUMERO_TOTAL_DE_FOTOS = 68; // <-- Cambia este número
+		const EXTENSION_POR_DEFECTO = 'jpg';
+		const PHOTO_INTERVAL_SECONDS = 12;
+		const IMAGE_FOLDER = 'imagenes/';
+		const MAX_BLACK_BARS_PERCENT = 0.25; // Límite del 15% para las bandas negras
 
-        const container = document.getElementById('carousel-container');
-        const navLeft = document.getElementById('nav-left');
-        const navRight = document.getElementById('nav-right');
-        const loadingMessage = document.getElementById('loading-message');
+		const ENTRY_ANIMATIONS = [
+			'anim-fade-in',
+			'anim-slide-from-right',
+			'anim-slide-from-left',
+			'anim-zoom-in'
+		];
 
-        let shuffledIndices = [];
-        let currentIndex = -1;
-        let autoplayTimer;
+		// --- LÓGICA DEL CARRUSEL ---
+		const imageFiles = [];
+		for (let i = 1; i <= NUMERO_TOTAL_DE_FOTOS; i++) {
+			imageFiles.push(`foto${i}.${EXTENSION_POR_DEFECTO}`);
+		}
 
-        function shuffleArray(array) {
-            for (let i = array.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [array[i], array[j]] = [array[j], array[i]];
-            }
-        }
+		const container = document.getElementById('carousel-container');
+		const navLeft = document.getElementById('nav-left');
+		const navRight = document.getElementById('nav-right');
+		const loadingMessage = document.getElementById('loading-message');
 
-        function showImage(index) {
-            const oldImages = container.querySelectorAll('.carousel-image');
-            oldImages.forEach(img => {
-                img.classList.remove('visible');
-                setTimeout(() => { if (container.contains(img)) container.removeChild(img); }, 2000);
-            });
-            
-            if (loadingMessage) loadingMessage.style.display = 'none';
+		let shuffledIndices = [];
+		let currentIndex = -1;
+		let autoplayTimer;
 
-            const img = document.createElement('img');
-            const baseFileName = imageFiles[index];
-            img.src = IMAGE_FOLDER + baseFileName;
-            
-            img.onload = function() {
-                const screenW = window.innerWidth;
-                const screenH = window.innerHeight;
-                const screenRatio = screenW / screenH;
-                const imageRatio = this.naturalWidth / this.naturalHeight;
+		function shuffleArray(array) {
+			for (let i = array.length - 1; i > 0; i--) {
+				const j = Math.floor(Math.random() * (i + 1));
+				[array[i], array[j]] = [array[j], array[i]];
+			}
+		}
 
-                // Calcula el tamaño de las bandas negras si usáramos 'contain'
-                let blackBarSize = 0;
-                if (imageRatio > screenRatio) { // Bandas arriba y abajo
-                    const projectedHeight = screenW / imageRatio;
-                    blackBarSize = (screenH - projectedHeight) / screenH;
-                } else { // Bandas a los lados
-                    const projectedWidth = screenH * imageRatio;
-                    blackBarSize = (screenW - projectedWidth) / screenW;
-                }
+		function showImage(index) {
+			const oldImages = container.querySelectorAll('.carousel-image');
+			oldImages.forEach(img => {
+				img.classList.remove('visible');
+				setTimeout(() => { if (container.contains(img)) container.removeChild(img); }, 2000);
+			});
 
-                // Si las bandas negras son aceptables, usa 'contain'
-                if (blackBarSize <= MAX_BLACK_BARS_PERCENT) {
-                    this.classList.add('fit-contain');
-                }
-                // Si no, se queda con 'cover' por defecto
+			if (loadingMessage) loadingMessage.style.display = 'none';
 
-                // Aplica animaciones y haz visible la imagen
-                const randomAnimation = ENTRY_ANIMATIONS[Math.floor(Math.random() * ENTRY_ANIMATIONS.length)];
-                this.classList.add(randomAnimation);
+			const img = document.createElement('img');
+			const baseFileName = imageFiles[index];
+			img.src = IMAGE_FOLDER + baseFileName;
 
-                if (Math.random() > 0.5 && !this.classList.contains('fit-contain')) {
-                    this.classList.add('anim-ken-burns');
-                }
-                
-                void this.offsetWidth;
-                this.classList.add('visible');
-            };
-            
-            img.onerror = function() {
-                const extensionsToTry = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
-                let currentExt = baseFileName.split('.').pop();
-                let nextExtIndex = (extensionsToTry.indexOf(currentExt) + 1) % extensionsToTry.length;
-                this.src = IMAGE_FOLDER + baseFileName.replace(currentExt, extensionsToTry[nextExtIndex]);
-            };
+			img.onload = function () {
+				const screenW = window.innerWidth;
+				const screenH = window.innerHeight;
+				const screenRatio = screenW / screenH;
+				const imageRatio = this.naturalWidth / this.naturalHeight;
 
-            img.classList.add('carousel-image');
-            container.appendChild(img);
-        }
+				// Calcula el tamaño de las bandas negras si usáramos 'contain'
+				let blackBarSize = 0;
+				if (imageRatio > screenRatio) { // Bandas arriba y abajo
+					const projectedHeight = screenW / imageRatio;
+					blackBarSize = (screenH - projectedHeight) / screenH;
+				} else { // Bandas a los lados
+					const projectedWidth = screenH * imageRatio;
+					blackBarSize = (screenW - projectedWidth) / screenW;
+				}
 
-        function nextImage() {
-            currentIndex++;
-            if (currentIndex >= shuffledIndices.length) {
-                currentIndex = 0;
-                shuffleArray(shuffledIndices);
-            }
-            showImage(shuffledIndices[currentIndex]);
-            resetAutoplay();
-        }
+				// Si las bandas negras son aceptables, usa 'contain'
+				if (blackBarSize <= MAX_BLACK_BARS_PERCENT) {
+					this.classList.add('fit-contain');
+				}
+				// Si no, se queda con 'cover' por defecto
 
-        function prevImage() {
-            currentIndex--;
-            if (currentIndex < 0) {
-                currentIndex = shuffledIndices.length - 1;
-            }
-            showImage(shuffledIndices[currentIndex]);
-            resetAutoplay();
-        }
+				// Aplica animaciones y haz visible la imagen
+				const randomAnimation = ENTRY_ANIMATIONS[Math.floor(Math.random() * ENTRY_ANIMATIONS.length)];
+				this.classList.add(randomAnimation);
 
-        function startAutoplay() {
-            autoplayTimer = setInterval(nextImage, PHOTO_INTERVAL_SECONDS * 1000);
-        }
+				if (Math.random() > 0.5 && !this.classList.contains('fit-contain')) {
+					this.classList.add('anim-ken-burns');
+				}
 
-        function resetAutoplay() {
-            clearInterval(autoplayTimer);
-            startAutoplay();
-        }
+				void this.offsetWidth;
+				this.classList.add('visible');
+			};
 
-        function init() {
-            if (!imageFiles || imageFiles.length === 0) {
-                loadingMessage.textContent = "El número total de fotos es cero.";
-                return;
-            }
-            
-            shuffledIndices = Array.from(Array(imageFiles.length).keys());
-            shuffleArray(shuffledIndices);
-            
-            navLeft.addEventListener('click', prevImage);
-            navRight.addEventListener('click', nextImage);
-            
-            nextImage();
-        }
+			img.onerror = function () {
+				// Evitar bucle infinito: solo intentar una vez con cada extensión
+				if (!this.dataset.triedExtensions) {
+					this.dataset.triedExtensions = '';
+				}
 
-        init();
-    </script>
+				const extensionsToTry = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+				let currentExt = baseFileName.split('.').pop();
+
+				// Marcar la extensión actual como probada
+				if (!this.dataset.triedExtensions.includes(currentExt)) {
+					this.dataset.triedExtensions += currentExt + ',';
+				}
+
+				// Buscar la siguiente extensión no probada
+				let nextExt = null;
+				for (let ext of extensionsToTry) {
+					if (!this.dataset.triedExtensions.includes(ext)) {
+						nextExt = ext;
+						break;
+					}
+				}
+
+				if (nextExt) {
+					this.src = IMAGE_FOLDER + baseFileName.replace(/\.[^.]+$/, '.' + nextExt);
+				} else {
+					// Si todas las extensiones fallaron, mostrar la siguiente imagen
+					console.warn(`No se pudo cargar la imagen: ${baseFileName}`);
+					setTimeout(nextImage, 1000); // Esperar 1 segundo antes de pasar a la siguiente
+				}
+			};
+
+			img.classList.add('carousel-image');
+			container.appendChild(img);
+		}
+
+		function nextImage() {
+			currentIndex++;
+			if (currentIndex >= shuffledIndices.length) {
+				currentIndex = 0;
+				shuffleArray(shuffledIndices);
+			}
+			showImage(shuffledIndices[currentIndex]);
+			resetAutoplay();
+		}
+
+		function prevImage() {
+			currentIndex--;
+			if (currentIndex < 0) {
+				currentIndex = shuffledIndices.length - 1;
+			}
+			showImage(shuffledIndices[currentIndex]);
+			resetAutoplay();
+		}
+
+		function startAutoplay() {
+			autoplayTimer = setInterval(nextImage, PHOTO_INTERVAL_SECONDS * 1000);
+		}
+
+		function resetAutoplay() {
+			clearInterval(autoplayTimer);
+			startAutoplay();
+		}
+
+		function init() {
+			if (!imageFiles || imageFiles.length === 0) {
+				loadingMessage.textContent = "El número total de fotos es cero.";
+				return;
+			}
+
+			shuffledIndices = Array.from(Array(imageFiles.length).keys());
+			shuffleArray(shuffledIndices);
+
+			navLeft.addEventListener('click', prevImage);
+			navRight.addEventListener('click', nextImage);
+
+			nextImage();
+		}
+
+		init();
+	</script>
 </body>
+
 </html>

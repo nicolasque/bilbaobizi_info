@@ -31,77 +31,50 @@
             left: 0;
             width: 100%;
             height: 100%;
-            object-fit: cover; /* ¡LA MAGIA! Rellena el espacio sin deformar la imagen */
+            /* Por defecto, las imágenes rellenan la pantalla. JS decidirá si cambia a 'contain'. */
+            object-fit: cover; 
             opacity: 0; /* Ocultas por defecto */
             transition: opacity 1.5s ease-in-out; /* Transición suave para la opacidad */
         }
         
+        /* Clase que JS añadirá dinámicamente */
+        .fit-contain {
+            object-fit: contain;
+        }
+
         .carousel-image.visible {
             opacity: 1; /* Hace visible la imagen activa */
             z-index: 2; /* Se asegura que la imagen activa esté por encima de la anterior */
         }
 
         /* --- CLASES DE ANIMACIÓN DE ENTRADA --- */
-        .anim-fade-in {
-            animation: fadeIn 1.5s ease-in-out;
-        }
-        .anim-slide-from-right {
-            animation: slideFromRight 1.2s cubic-bezier(0.250, 0.460, 0.450, 0.940);
-        }
-        .anim-slide-from-left {
-            animation: slideFromLeft 1.2s cubic-bezier(0.250, 0.460, 0.450, 0.940);
-        }
-        .anim-zoom-in {
-            animation: zoomIn 1.5s ease-out;
-        }
-        .anim-ken-burns {
-            animation: kenBurns 20s ease-in-out infinite alternate;
-        }
-
+        .anim-fade-in { animation: fadeIn 1.5s ease-in-out; }
+        .anim-slide-from-right { animation: slideFromRight 1.2s cubic-bezier(0.250, 0.460, 0.450, 0.940); }
+        .anim-slide-from-left { animation: slideFromLeft 1.2s cubic-bezier(0.250, 0.460, 0.450, 0.940); }
+        .anim-zoom-in { animation: zoomIn 1.5s ease-out; }
+        .anim-ken-burns { animation: kenBurns 20s ease-in-out infinite alternate; }
 
         /* --- DEFINICIÓN DE LAS ANIMACIONES (KEYFRAMES) --- */
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        @keyframes slideFromRight {
-            from { transform: translateX(100%); }
-            to { transform: translateX(0); }
-        }
-        @keyframes slideFromLeft {
-            from { transform: translateX(-100%); }
-            to { transform: translateX(0); }
-        }
-        @keyframes zoomIn {
-            from { opacity: 0; transform: scale(1.1); }
-            to { opacity: 1; transform: scale(1); }
-        }
-        @keyframes kenBurns {
-            from { transform: scale(1) translate(0, 0); }
-            to { transform: scale(1.15) translate(2%, -1%); }
-        }
-
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideFromRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        @keyframes slideFromLeft { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+        @keyframes zoomIn { from { opacity: 0; transform: scale(1.1); } to { opacity: 1; transform: scale(1); } }
+        @keyframes kenBurns { from { transform: scale(1) translate(0, 0); } to { transform: scale(1.15) translate(2%, -1%); } }
 
         /* --- ÁREAS DE NAVEGACIÓN (IZQUIERDA/DERECHA) --- */
         .nav-area {
             position: absolute;
             top: 0;
             height: 100%;
-            width: 45%; /* Ocupan casi la mitad de la pantalla para ser fáciles de pulsar */
+            width: 45%;
             z-index: 10;
             cursor: pointer;
-            -webkit-tap-highlight-color: transparent; /* Evita el destello azul en móviles */
+            -webkit-tap-highlight-color: transparent;
         }
 
-        #nav-left {
-            left: 0;
-        }
-
-        #nav-right {
-            right: 0;
-        }
+        #nav-left { left: 0; }
+        #nav-right { right: 0; }
         
-        /* Mensaje de carga inicial */
         #loading-message {
             position: absolute;
             top: 50%;
@@ -109,7 +82,6 @@
             transform: translate(-50%, -50%);
             z-index: 99;
         }
-
     </style>
 </head>
 <body>
@@ -122,163 +94,144 @@
     <div class="nav-area" id="nav-right"></div>
 
     <script>
-    // --- CONFIGURACIÓN ---
-    
-    // 1. ¡ÚNICO DATO A ACTUALIZAR!
-    // Pon aquí el número total de fotos que tienes en la carpeta "imagenes".
-    const NUMERO_TOTAL_DE_FOTOS = 68; // <-- Cambia este número
+        // --- CONFIGURACIÓN ---
+        const NUMERO_TOTAL_DE_FOTOS = 68; // <-- Cambia este número
+        const EXTENSION_POR_DEFECTO = 'jpg';
+        const PHOTO_INTERVAL_SECONDS = 12;
+        const IMAGE_FOLDER = 'imagenes/';
+        const MAX_BLACK_BARS_PERCENT = 0.15; // Límite del 15% para las bandas negras
 
-    // 2. Extensión de imagen por defecto.
-    // El código intentará cargar 'fotoX.jpg', 'fotoX.png', etc.
-    // Pon aquí la extensión más común de tus fotos para que las cargue más rápido.
-    const EXTENSION_POR_DEFECTO = 'jpg';
-    
-    // 3. Tiempo en segundos que cada foto permanece visible.
-    const PHOTO_INTERVAL_SECONDS = 12;
-
-    // 4. Carpeta donde guardas las imágenes.
-    const IMAGE_FOLDER = 'imagenes/';
-
-    // 5. Lista de animaciones de entrada posibles.
-    const ENTRY_ANIMATIONS = [
-        'anim-fade-in', 
-        'anim-slide-from-right', 
-        'anim-slide-from-left', 
-        'anim-zoom-in'
-    ];
-    
-    // --- FIN DE LA CONFIGURACIÓN ---
-
-
-    // --- LÓGICA DEL CARRUSEL (Generación automática de la lista) ---
-    
-    const imageFiles = [];
-    for (let i = 1; i <= NUMERO_TOTAL_DE_FOTOS; i++) {
-        // Asumimos una extensión por defecto, ya que el script de bash mantiene la original.
-        // El navegador probará 'fotoX.jpg', luego 'fotoX.png', etc. si la primera falla.
-        // Esta es una simplificación; para un sistema robusto, necesitaríamos saber cada extensión.
-        // Pero como el script de renombrado las mantiene, esto funcionará si la mayoría son .jpg
-        // Para ser 100% precisos, lo mejor es que todas tus fotos tengan la misma extensión.
-        imageFiles.push(`foto${i}.${EXTENSION_POR_DEFECTO}`);
-    }
-    
-    // El resto de la lógica del carrusel permanece igual...
-    // (Pega aquí el resto del código JavaScript del carrusel de la respuesta anterior)
-
-    const container = document.getElementById('carousel-container');
-    const navLeft = document.getElementById('nav-left');
-    const navRight = document.getElementById('nav-right');
-    const loadingMessage = document.getElementById('loading-message');
-
-    let shuffledIndices = [];
-    let currentIndex = -1;
-    let autoplayTimer;
-
-    // Función para barajar un array (algoritmo Fisher-Yates)
-    function shuffleArray(array) {
-        for (let i = array.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [array[i], array[j]] = [array[j], array[i]];
-        }
-    }
-
-    function showImage(index) {
-        const oldImages = container.querySelectorAll('.carousel-image');
-        oldImages.forEach(img => {
-            img.classList.remove('visible');
-            setTimeout(() => {
-                if (container.contains(img)) {
-                    container.removeChild(img);
-                }
-            }, 2000);
-        });
+        const ENTRY_ANIMATIONS = [
+            'anim-fade-in', 
+            'anim-slide-from-right', 
+            'anim-slide-from-left', 
+            'anim-zoom-in'
+        ];
         
-        if (loadingMessage) {
-            loadingMessage.style.display = 'none';
+        // --- LÓGICA DEL CARRUSEL ---
+        const imageFiles = [];
+        for (let i = 1; i <= NUMERO_TOTAL_DE_FOTOS; i++) {
+            imageFiles.push(`foto${i}.${EXTENSION_POR_DEFECTO}`);
         }
 
-        const img = document.createElement('img');
-        const baseFileName = imageFiles[index];
-        img.src = IMAGE_FOLDER + baseFileName;
-        
-        // Manejador de error por si la extensión por defecto no es la correcta
-        img.onerror = function() {
-            const extensionsToTry = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
-            let currentExt = baseFileName.split('.').pop();
-            let nextExtIndex = (extensionsToTry.indexOf(currentExt) + 1) % extensionsToTry.length;
-            let triedAll = false;
-            
-            while(this.src.endsWith(extensionsToTry[nextExtIndex]) === false && !triedAll) {
-                 let nextSrc = IMAGE_FOLDER + baseFileName.replace(currentExt, extensionsToTry[nextExtIndex]);
-                 if(this.src !== nextSrc) {
-                     this.src = nextSrc;
-                     break;
-                 }
-                 nextExtIndex = (nextExtIndex + 1) % extensionsToTry.length;
-                 if(extensionsToTry.indexOf(currentExt) === nextExtIndex) triedAll = true;
+        const container = document.getElementById('carousel-container');
+        const navLeft = document.getElementById('nav-left');
+        const navRight = document.getElementById('nav-right');
+        const loadingMessage = document.getElementById('loading-message');
+
+        let shuffledIndices = [];
+        let currentIndex = -1;
+        let autoplayTimer;
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
             }
-        };
-
-        img.classList.add('carousel-image');
-        
-        const randomAnimation = ENTRY_ANIMATIONS[Math.floor(Math.random() * ENTRY_ANIMATIONS.length)];
-        img.classList.add(randomAnimation);
-
-        if (Math.random() > 0.5) {
-            img.classList.add('anim-ken-burns');
         }
 
-        container.appendChild(img);
-        
-        void img.offsetWidth;
+        function showImage(index) {
+            const oldImages = container.querySelectorAll('.carousel-image');
+            oldImages.forEach(img => {
+                img.classList.remove('visible');
+                setTimeout(() => { if (container.contains(img)) container.removeChild(img); }, 2000);
+            });
+            
+            if (loadingMessage) loadingMessage.style.display = 'none';
 
-        img.classList.add('visible');
-    }
+            const img = document.createElement('img');
+            const baseFileName = imageFiles[index];
+            img.src = IMAGE_FOLDER + baseFileName;
+            
+            img.onload = function() {
+                const screenW = window.innerWidth;
+                const screenH = window.innerHeight;
+                const screenRatio = screenW / screenH;
+                const imageRatio = this.naturalWidth / this.naturalHeight;
 
-    function nextImage() {
-        currentIndex++;
-        if (currentIndex >= shuffledIndices.length) {
-            currentIndex = 0;
+                // Calcula el tamaño de las bandas negras si usáramos 'contain'
+                let blackBarSize = 0;
+                if (imageRatio > screenRatio) { // Bandas arriba y abajo
+                    const projectedHeight = screenW / imageRatio;
+                    blackBarSize = (screenH - projectedHeight) / screenH;
+                } else { // Bandas a los lados
+                    const projectedWidth = screenH * imageRatio;
+                    blackBarSize = (screenW - projectedWidth) / screenW;
+                }
+
+                // Si las bandas negras son aceptables, usa 'contain'
+                if (blackBarSize <= MAX_BLACK_BARS_PERCENT) {
+                    this.classList.add('fit-contain');
+                }
+                // Si no, se queda con 'cover' por defecto
+
+                // Aplica animaciones y haz visible la imagen
+                const randomAnimation = ENTRY_ANIMATIONS[Math.floor(Math.random() * ENTRY_ANIMATIONS.length)];
+                this.classList.add(randomAnimation);
+
+                if (Math.random() > 0.5 && !this.classList.contains('fit-contain')) {
+                    this.classList.add('anim-ken-burns');
+                }
+                
+                void this.offsetWidth;
+                this.classList.add('visible');
+            };
+            
+            img.onerror = function() {
+                const extensionsToTry = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+                let currentExt = baseFileName.split('.').pop();
+                let nextExtIndex = (extensionsToTry.indexOf(currentExt) + 1) % extensionsToTry.length;
+                this.src = IMAGE_FOLDER + baseFileName.replace(currentExt, extensionsToTry[nextExtIndex]);
+            };
+
+            img.classList.add('carousel-image');
+            container.appendChild(img);
+        }
+
+        function nextImage() {
+            currentIndex++;
+            if (currentIndex >= shuffledIndices.length) {
+                currentIndex = 0;
+                shuffleArray(shuffledIndices);
+            }
+            showImage(shuffledIndices[currentIndex]);
+            resetAutoplay();
+        }
+
+        function prevImage() {
+            currentIndex--;
+            if (currentIndex < 0) {
+                currentIndex = shuffledIndices.length - 1;
+            }
+            showImage(shuffledIndices[currentIndex]);
+            resetAutoplay();
+        }
+
+        function startAutoplay() {
+            autoplayTimer = setInterval(nextImage, PHOTO_INTERVAL_SECONDS * 1000);
+        }
+
+        function resetAutoplay() {
+            clearInterval(autoplayTimer);
+            startAutoplay();
+        }
+
+        function init() {
+            if (!imageFiles || imageFiles.length === 0) {
+                loadingMessage.textContent = "El número total de fotos es cero.";
+                return;
+            }
+            
+            shuffledIndices = Array.from(Array(imageFiles.length).keys());
             shuffleArray(shuffledIndices);
+            
+            navLeft.addEventListener('click', prevImage);
+            navRight.addEventListener('click', nextImage);
+            
+            nextImage();
         }
-        showImage(shuffledIndices[currentIndex]);
-        resetAutoplay();
-    }
 
-    function prevImage() {
-        currentIndex--;
-        if (currentIndex < 0) {
-            currentIndex = shuffledIndices.length - 1;
-        }
-        showImage(shuffledIndices[currentIndex]);
-        resetAutoplay();
-    }
-
-    function startAutoplay() {
-        autoplayTimer = setInterval(nextImage, PHOTO_INTERVAL_SECONDS * 1000);
-    }
-
-    function resetAutoplay() {
-        clearInterval(autoplayTimer);
-        startAutoplay();
-    }
-
-    function init() {
-        if (!imageFiles || imageFiles.length === 0) {
-            loadingMessage.textContent = "El número total de fotos es cero.";
-            return;
-        }
-        
-        shuffledIndices = Array.from(Array(imageFiles.length).keys());
-        shuffleArray(shuffledIndices);
-        
-        navLeft.addEventListener('click', prevImage);
-        navRight.addEventListener('click', nextImage);
-        
-        nextImage();
-    }
-
-    init();
-</script>
+        init();
+    </script>
 </body>
 </html>
